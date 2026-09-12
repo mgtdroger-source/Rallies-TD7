@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="TD_simple.ico" type="image/x-icon">
+<title>Tracking — Google Setup Guide</title>
+<style>
+:root{
+  --td-blue:#0070C0;
+  --td-text:#111;
+  --td-muted:#444;
+}
+html,body{margin:0;padding:0;background:#fff;color:var(--td-text);}
+body{
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size:14px;
+  line-height:1.55;
+}
+main{
+  max-width:980px;
+  margin:36px auto;
+  padding:0 24px 40px;
+}
+h1{
+  font-size:26px;
+  line-height:1.2;
+  margin:0 0 14px;
+  color:var(--td-blue);
+  font-weight:700;
+}
+h2{
+  font-size:18px;
+  line-height:1.25;
+  margin:22px 0 10px;
+  color:var(--td-blue);
+  font-weight:700;
+}
+h3{
+  font-size:14px;
+  line-height:1.25;
+  margin:14px 0 6px;
+  color:var(--td-text);
+  font-weight:600;
+}
+p{margin:0 0 10px;}
+ul,ol{margin:0 0 10px 22px;padding:0;}
+li{margin:0 0 6px;}
+.note{color:var(--td-muted);margin-top:2px;}
+.warning{
+  border:1px solid #f59e0b;
+  background:#fffbeb;
+  border-radius:10px;
+  padding:10px 12px;
+  margin:12px 0;
+}
+hr{border:0;border-top:1px solid #e5e7eb;margin:18px 0;}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Tracking — Google Setup Guide</h1>
+
+<h2>Overview</h2>
+<p>The Tracking page connects the Rally App to Google so that location updates sent by the mobile Tracking PWA can be received, stored and shown on the event map.</p>
+<p>The Rally App may already have a Google Apps Script connection created from Admin for entries, controls and results. Tracking requires a <strong>second, independent Apps Script project</strong>.</p>
+
+<h2>Why Tracking uses a separate Apps Script</h2>
+<p>Tracking receives frequent live location updates and writes them to its own tracking log. Keeping this separate from the Admin connection means:</p>
+<ul>
+  <li>tracking data cannot interfere with entries, controls or results;</li>
+  <li>the tracking log can be opened and managed independently;</li>
+  <li>Tracking can be tested, reset or updated without affecting the proven Rally Admin connection;</li>
+  <li>the Tracking PWA uses its own Web App URL.</li>
+</ul>
+<div class="warning"><strong>Important:</strong> Do not replace or reuse the Apps Script URL already saved in Admin. Create a new Apps Script project and use its new Web App URL only in the Tracking card.</div>
+
+<h2>Before you start</h2>
+<p>You need:</p>
+<ul>
+  <li>the Google account already used for the Rally App;</li>
+  <li>access to Google Drive;</li>
+  <li>the Tracking page open on the desktop;</li>
+  <li>the Tracking <strong>Code.gs</strong> file supplied with the Tracking system.</li>
+</ul>
+
+<h2>Key steps</h2>
+<ul>
+  <li>Create a new Google Apps Script project.</li>
+  <li>Copy the Tracking Code.gs script from the Tracking card.</li>
+  <li>Paste it into the new Apps Script project.</li>
+  <li>Deploy it as a Web App.</li>
+  <li>Copy the new Web App URL into the Tracking card.</li>
+  <li>Save and test the Tracking connection.</li>
+</ul>
+
+<h2>Step 1 — Open Google Drive</h2>
+<ol>
+  <li>Open your web browser.</li>
+  <li>Go to <strong>drive.google.com</strong>.</li>
+  <li>Sign in using the Google account used for the Rally App.</li>
+</ol>
+
+<h2>Step 2 — Create a separate Apps Script project</h2>
+<ol>
+  <li>In Google Drive, click <strong>New</strong>.</li>
+  <li>Select <strong>More</strong>.</li>
+  <li>Choose <strong>Google Apps Script</strong>.</li>
+</ol>
+<p>A new Apps Script project will open.</p>
+<p class="note">Give the project a clear name, for example: Rally Tracking.</p>
+
+<h2>Step 3 — Prepare the Apps Script editor</h2>
+<p>When the editor opens, you will normally see:</p>
+<ul>
+  <li>a file named <strong>Code.gs</strong> in the left panel;</li>
+  <li>sample code in the editor area.</li>
+</ul>
+<p class="note">The sample code will be replaced by the Tracking script.</p>
+
+<h2>Step 4 — Copy Tracking Code.gs</h2>
+<ol>
+  <li>Return to the desktop Tracking page.</li>
+  <li>Click the blue <strong>Tracking</strong> button at the far right.</li>
+  <li>Under <strong>First time setup</strong>, click <strong>Open Code.gs file</strong>.</li>
+  <li>Click inside the code page.</li>
+  <li>Press <strong>Ctrl+A</strong> to select all.</li>
+  <li>Press <strong>Ctrl+C</strong> to copy.</li>
+</ol>
+<p>You can now close the code page.</p>
+
+<h2>Step 5 — Replace the default script</h2>
+<ol>
+  <li>Return to the new Google Apps Script tab.</li>
+  <li>Click inside the editor.</li>
+  <li>Press <strong>Ctrl+A</strong> to select all existing code.</li>
+  <li>Press <strong>Delete</strong>.</li>
+  <li>Press <strong>Ctrl+V</strong> to paste the Tracking Code.gs script.</li>
+</ol>
+
+<h2>Step 6 — Save the script</h2>
+<ol>
+  <li>Click the <strong>Save</strong> icon, or press <strong>Ctrl+S</strong>.</li>
+  <li>Wait until the save message disappears.</li>
+</ol>
+
+<h2>Step 7 — Deploy as a Web App</h2>
+<ol>
+  <li>Click <strong>Deploy</strong> at the top right.</li>
+  <li>Select <strong>New deployment</strong>.</li>
+  <li>Choose <strong>Web app</strong>.</li>
+</ol>
+<p>Use these settings:</p>
+<ul>
+  <li><strong>Execute as:</strong> Me</li>
+  <li><strong>Who has access:</strong> Anyone or Anyone with the link</li>
+</ul>
+<ol start="4">
+  <li>Click <strong>Deploy</strong>.</li>
+  <li>When prompted, allow the required permissions.</li>
+</ol>
+
+<h2>Step 8 — Copy the Tracking Web App URL</h2>
+<p>After deployment, Google will show a Web App URL.</p>
+<p>Copy this address. This is the independent Tracking connection URL.</p>
+
+<h2>Step 9 — Connect the Tracking page</h2>
+<ol>
+  <li>Return to the desktop Tracking page.</li>
+  <li>Open the blue <strong>Tracking</strong> card.</li>
+  <li>Under <strong>Setup</strong>, enter the organiser's mobile number, including the international prefix.</li>
+  <li>Paste the new Tracking Web App URL into <strong>Google connection URL</strong>.</li>
+  <li>Click <strong>Save &amp; test</strong>.</li>
+</ol>
+<p>If successful, the status pill will show <strong>Connected</strong>.</p>
+
+<h2>Tracking data</h2>
+<p>Use <strong>Open tracking log</strong> to open the separate Google log used to receive location updates from the Tracking PWA.</p>
+<p>This log is independent of the entry and control sheets used by the main Rally App.</p>
+<h3>Seven-day tracking history</h3>
+<p>The Tracking log keeps the current tracking day and the previous six tracking days, giving a rolling history of seven tracking days.</p>
+<ul>
+  <li>Each tracking day runs from <strong>03:00 to 02:59</strong> the following morning.</li>
+  <li>Older tracking rows are removed automatically after they fall outside the seven-day history.</li>
+  <li>The heading row is always retained.</li>
+  <li>No manual clearing is required during normal use.</li>
+</ul>
+<p class="note">The seven-day history limits the long-term size of the Google sheet. Download or copy any older tracking records before they expire if they are required for a permanent archive.</p>
+
+<h2>Tracking link</h2>
+<p>The Tracking link buttons are used to send the link that opens the Tracking PWA on a mobile device.</p>
+<ul>
+  <li><strong>Copy link</strong> copies the Tracking PWA link so it can be pasted elsewhere.</li>
+  <li><strong>Email link</strong> prepares an email containing the Tracking PWA link.</li>
+  <li><strong>WhatsApp</strong> prepares a WhatsApp message containing the Tracking PWA link.</li>
+</ul>
+<p>When the link is opened on the phone, the Tracking PWA loads with the rally, day and route information carried by the link and connects to the independent Tracking Apps Script.</p>
+
+<h2>Normal use</h2>
+<ul>
+  <li>The organiser opens the desktop Tracking page.</li>
+  <li>The Tracking PWA link is sent to the required mobile device.</li>
+  <li>The user opens the link and runs the Tracking PWA during the event.</li>
+  <li>Location updates are sent to the separate Tracking log.</li>
+  <li>The desktop Tracking page displays the latest entrant positions and status.</li>
+</ul>
+
+<h2>If the connection changes</h2>
+<p>If the Tracking Apps Script is redeployed with a new Web App URL, return to the Tracking card, select <strong>Clear</strong>, paste the replacement URL and select <strong>Save &amp; test</strong> again.</p>
+<p class="note">Changing the Tracking URL does not alter the Apps Script connection already saved in Admin.</p>
+
+</main>
+</body>
+</html>

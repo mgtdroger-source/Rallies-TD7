@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mapping guide v0.24</title>
+  <style>
+    :root{
+      --ink:#0f172a;
+      --muted:#64748b;
+      --line:#d1d5db;
+      --panel:#f8fafc;
+      --soft:#eef2f7;
+      --blue:#0b72c9;
+      --blue2:#2563eb;
+      --green:#16a34a;
+      --red:#dc2626;
+      --amber:#f59e0b;
+      --purple:#7c3aed;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#eef2f7;font-size:15px;line-height:1.48}
+    body{padding:18px}
+    .guideShell{max-width:1120px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 16px 42px rgba(15,23,42,.12);overflow:hidden}
+    .topbar{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;background:#fff;border-bottom:1px solid #e5e7eb}
+    .topbarTitle{font-size:18px;font-weight:850;letter-spacing:-.01em}
+    .topbarActions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:800;padding:8px 13px;cursor:pointer}
+    button:hover{filter:brightness(.98)}
+    .content{padding:42px 48px 54px}
+    h1{margin:0 0 18px;color:var(--blue);font-size:30px;line-height:1.12;letter-spacing:-.02em}
+    h2{margin:30px 0 10px;color:var(--blue);font-size:21px;line-height:1.2}
+    h3{margin:22px 0 8px;font-size:16px;color:#1e293b}
+    p{margin:0 0 12px}
+    ul,ol{margin:0 0 16px 22px;padding:0}
+    li{margin:5px 0}
+    .lead{font-size:16px;color:#334155;max-width:920px}
+    .note{border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px;padding:12px 14px;margin:16px 0;color:#1e3a8a}
+    .warn{border-color:#fed7aa;background:#fff7ed;color:#7c2d12}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0 20px}
+    .card{border:1px solid #dbe3ee;background:#fbfdff;border-radius:13px;padding:14px}
+    .card b{display:block;margin-bottom:5px;font-size:15px}
+    .pillRow{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 18px}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid #cbd5e1;border-radius:999px;background:#f8fafc;padding:6px 10px;font-size:13px;font-weight:750;color:#334155}
+    .btnBlue{color:#fff;background:var(--blue2);border-color:var(--blue2)}
+    .btnGreen{color:#fff;background:var(--green);border-color:var(--green)}
+    .btnRed{color:#fff;background:var(--red);border-color:var(--red)}
+    .miniTable{width:100%;border-collapse:separate;border-spacing:0;margin:14px 0 18px;border:1px solid #d1d5db;border-radius:12px;overflow:hidden}
+    .miniTable th,.miniTable td{border-bottom:1px solid #e5e7eb;padding:9px 10px;text-align:left;vertical-align:top}
+    .miniTable th{background:#f1f5f9;font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:#334155}
+    .miniTable tr:last-child td{border-bottom:0}
+    code{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.92em}
+    .footer{margin-top:34px;padding-top:14px;border-top:1px solid #e5e7eb;color:var(--muted);font-size:13px}
+    @media(max-width:760px){body{padding:8px}.content{padding:28px 22px 36px}.grid{grid-template-columns:1fr}.topbar{align-items:flex-start}.topbarActions{justify-content:flex-end}h1{font-size:25px}}
+
+    /* v0.24: document the combined Day / Route selector, Admin route-count filtering, per-day/route working-map restore, and TD7/TD2 role behaviour. */
+    /* v0.23: one Help file for TD7 / TD2 using MAPPING_ROLE; add imported Trip Mark dragging guidance. */
+    html[data-mapping-role="TD2"] .roleTD7{display:none !important}
+    html[data-mapping-role="TD7"] .roleTD2{display:none !important}
+
+    /* v0.22: explain how imported Field Tool points and Trip Marks are reviewed and added to the formal route. */
+    /* v0.21: update Share Route for saved-file folder sharing and revise Distance CAL for user-entered mapped/measured comparison plus independent signed correction. */
+    /* v0.20: add Distance CAL guidance: reference-vs-map calibration, applied percentage, active warning, and effect on rally distances. */
+    /* v0.19: document imported Route Survey behaviour, Show / Hide, persistence, and Clear Imported Field Data. */
+    /* v0.18: when opened inside the Rally Shell document viewer,
+       hide this guide's own action bar to avoid duplicate controls. */
+    html.shellEmbedded .topbar{display:none}
+    @media print{body{background:white;padding:0}.guideShell{box-shadow:none;border:0;border-radius:0}.topbarActions{display:none}.topbar{position:static}.content{padding:28px 34px}.note,.card{break-inside:avoid}}
+  </style>
+
+  <script>
+    // =========================================================
+    // Mapping Help role — change only this line for deployment.
+    // Use 'TD7' or 'TD2'.
+    // =========================================================
+    const MAPPING_ROLE = 'TD7';
+
+    document.documentElement.dataset.mappingRole = MAPPING_ROLE;
+
+    try{
+      if(window.self !== window.top){
+        document.documentElement.classList.add("shellEmbedded");
+      }
+    }catch(_e){
+      document.documentElement.classList.add("shellEmbedded");
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      const role = (MAPPING_ROLE === 'TD2') ? 'TD2' : 'TD7';
+      document.title = `${role} Mapping guide v0.24`;
+      const title = document.querySelector('.topbarTitle');
+      if(title) title.textContent = `${role} Mapping guide`;
+      const roleLabel = document.getElementById('guideRoleLabel');
+      if(roleLabel) roleLabel.textContent = role;
+    });
+  </script>
+</head>
+<body>
+  <main class="guideShell">
+    <header class="topbar">
+      <div class="topbarTitle">Mapping guide</div>
+      <div class="topbarActions">
+        <button type="button" onclick="window.print()">Print</button>
+        <button type="button" onclick="window.open(location.href, '_blank', 'noopener')">Open in new tab</button>
+        <button type="button" onclick="window.close()">Close</button>
+      </div>
+    </header>
+
+    <section class="content">
+      <h1>Mapping — Route Mapping <span id="guideRoleLabel" style="font-size:.48em;color:#64748b;font-weight:750;vertical-align:middle"></span></h1>
+      <p class="lead roleTD7">The Mapping page is used to build or edit the rally route map, keep the route points in driving order, draw control trip lines, import Field Data, and save the editable map file for later route work.</p>
+      <p class="lead roleTD2">The Mapping page is used to build or edit the rally route map, keep the route points in driving order, import Field Data, and save the editable map file for later route work.</p>
+
+<h2>Overview</h2>
+      <p>The page has two main areas: the left panel for route controls and point details, and the map area for placing, checking, and editing points. The main action buttons are arranged in a compact layout, with <b>Fit Route</b> and <b>Help</b> centred for quick access.</p>
+      <div class="roleTD7">
+        <p>The map banner shows two context pills. <b>Schedule</b> shows the active rally, day, and route. <b>Map</b> shows the description of the mapping file currently open on the page.</p>
+        <p>Mapping is integrated with the active rally project. Each rally day and route has its own Mapping working data, and Route 1 and Route 2 are kept separately.</p>
+      </div>
+      <div class="roleTD2">
+        <p>TD2 uses the same core Mapping tools but keeps the planning workflow simpler. The map banner identifies the Mapping file currently open, without the TD7 Schedule comparison and mismatch features.</p>
+      </div>
+
+      <h2>Day and Route selector</h2>
+      <p>The selector at the top of the map combines the rally <b>day</b> and <b>route</b> into one control. Route choices are grouped beneath their day and include the date, for example <b>04 Sep - Route 1</b> and <b>04 Sep - Route 2</b>.</p>
+      <p><b>Admin controls which routes are available.</b> If Admin is set to one route, only Route 1 is shown. If Admin is set to two routes, Route 1 and Route 2 are shown. Mapping does not create extra selectable routes from old local map data.</p>
+      <p>Each valid day/route combination has its own local working map. Before Mapping changes to another selection, the current working map is retained. Selecting another day/route restores the working map belonging to that exact slot.</p>
+      <div class="note">
+        If Admin is changed from two routes to one, the old Route 2 working map is <b>not deleted</b>; it is simply hidden from the selector. If Route 2 is enabled again later, its previous working map can become available again.
+      </div>
+      <p class="roleTD7">In TD7, selecting a day/route also updates the shared Schedule context. A change made in Schedule is mirrored back to Mapping, so both pages stay on the same day and route.</p>
+      <p class="roleTD2">In TD2, the same selector controls Mapping working maps, but it remains independent of Schedule. TD2 does not use the TD7 Schedule import, comparison, or mismatch workflow.</p>
+
+      <div class="note">
+        <b>Normal workflow:</b> select the correct day and route, build or edit the map, enter a clear Map description, and select <b>Save Route</b>. The versioned map file is stored automatically in <code>Maps/Route 1</code> or <code>Maps/Route 2</code>, based on the active route.
+      </div>
+
+      <h2>What the main buttons do</h2>
+      <table class="miniTable">
+        <thead><tr><th>Button</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td><b>Fit Route</b></td><td>Zooms the map to show the plotted route and route points.</td></tr>
+          <tr><td><b>Add Next WP</b></td><td>Turns on one-click add mode. On a new blank route it starts ON automatically, ready for the first waypoint. Click the map once for each waypoint added at the end of the route.</td></tr>
+          <tr><td><b>Insert WP After Selected</b></td><td>Select a route point first, then use this to insert one normal waypoint after the selected point. Mapping confirms where the new point will be inserted before you place it. This is for normal route editing, not breadcrumb insertion.</td></tr>
+          <tr><td><b>Add Surveyed Control</b></td><td>Manually enter latitude/longitude details for a waypoint, STC, Start STC, Marshal, or Open Control.</td></tr>
+          <tr><td><b>Save Route</b></td><td>Saves a versioned map file in the active route folder and updates the Mapping working copy for that route. After a successful save, the button briefly changes to <b>Saved Route</b>.</td></tr>
+          <tr><td><b>Load Route</b></td><td>Opens <code>Maps/Route 1</code> or <code>Maps/Route 2</code>, based on the active route, so a saved mapping file can be reopened.</td></tr>
+          <tr><td><b>▼ / ▲</b></td><td>The arrow beside Save Route and Load Route jumps the left panel directly to the bottom controls. Near the bottom it changes to ▲; select it to return to the top.</td></tr>
+          <tr><td><b>Import Field Data</b></td><td>Imports points captured with the Rally Field Tool, such as waypoints, controls, notes, and trip marks.</td></tr>
+          <tr><td><b>Share Field Tool</b></td><td>Provides the Rally Field Tool link so it can be opened on a phone for field capture.</td></tr>
+          <tr><td><b>Share Route</b></td><td>Opens simple instructions for sending a saved route JSON to a mobile device. Select <b>Open Route Folder</b>, then use Windows to send/share the saved JSON by Email or another suitable method.</td></tr>
+          <tr><td><b>Distance CAL</b></td><td>Opens the distance calibration card. Enter the mapped distance and measured distance to calculate the error %, then independently enter the signed correction % you want Mapping to apply.</td></tr>
+          <tr><td><b>Reset</b></td><td>Clears the current route's Mapping workspace on the page. The other route's working map is not cleared. Use carefully.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Rally Workspace and map files</h2>
+      <p class="roleTD7">Admin sets one shared <b>Rally Workspace</b>. Inside that workspace, each rally has its own folder. Mapping uses a <code>Maps</code> folder containing a separate folder for each route:</p><p class="roleTD2">TD2 Mapping uses its configured TD2 workspace for saved route files and keeps its own working data separate from TD7.</p>
+      <ul class="roleTD7">
+        <li><code>Maps/Route 1</code></li>
+        <li><code>Maps/Route 2</code>, when two routes are enabled.</li>
+      </ul>
+
+      <div class="note roleTD7">
+        <b>Example folder structure</b><br>
+        <code>Rally schedules / Deep South 2026 / Maps / Route 1</code><br>
+        <code>Rally schedules / Deep South 2026 / Maps / Route 2</code>
+      </div>
+
+      <p class="roleTD7">Mapping keeps a separate local working map for Route 1 and Route 2. When the route selector is changed, the working map belonging to that route is restored.</p>
+      <p class="roleTD7"><b>Save Route</b> and <b>Load Route</b> use the folder for the active route. Always check the selected rally day and route before saving or loading a map.</p>
+      <p>Each time <b>Save Route</b> is used, Mapping creates a new versioned JSON file. The filename is controlled automatically from the rally title, day, route, and save time.</p>
+      <p>Example:</p>
+      <p><code>Deep_South_2026_Day_1_Route_1_map_2026-07-15_1320.json</code></p>
+      <p>The Map description is stored inside the file and shown in the wider Map pill together with the saved version date and time. Use a short description that helps distinguish the route version, such as <code>long route save</code> or <code>after STC 3 survey</code>.</p>
+
+      <div class="roleTD7">
+      <h2>Schedule and Map context</h2>
+      <p>The <b>Schedule</b> pill identifies the active rally, day, and route. The <b>Map</b> pill identifies the mapping file currently open on the page.</p>
+      <p>When Schedule imports a mapped route, it records the exact mapping filename and the map project identity. Mapping compares its current file with that Schedule record.</p>
+      <div class="note warn">
+        If the current mapping file is not the exact version last imported into Schedule, Mapping shows <b>Map does not match Schedule</b> beneath the Schedule pill.
+      </div>
+      <p>When the map is updated, save it and import the revised version into the matching Schedule day and route to clear the warning.</p>
+
+      </div>
+
+      <h2>Starting a new map</h2>
+      <p>When a blank route is opened, <b>Add Next WP</b> is already ON. Move or zoom the map to the required starting position, then click the map to place the first waypoint.</p>
+      <p>The first waypoint becomes the start of the ordered route. Continue clicking the map in driving order to add further waypoints, or turn <b>Add Next WP</b> off when the initial placement is complete.</p>
+      <div class="note">
+        If the first waypoint is placed incorrectly, select its card or marker and correct it before continuing. Establishing the correct first point helps keep the route order and distances clear from the start.
+      </div>
+
+      <h2>Route points and order</h2>
+      <p>Each route point appears as a card in the left panel and as a marker on the map. Select a card or marker before editing, inserting after it, or adding related breadcrumb detail.</p>
+      <p>When a route has many waypoint cards, use the <b>▼</b> button beside <b>Save Route</b> and <b>Load Route</b> to jump directly to the controls at the bottom of the left panel. The button changes to <b>▲</b> near the bottom so you can return to the top without dragging through the full list.</p>
+      <p>Route order matters. The saved mapping file keeps the route order, point types, notes, distances, and trip line details.</p>
+
+      <div class="grid">
+        <div class="card">
+          <b>Waypoints</b>
+          General route points used to shape the route and keep the driven path in the correct order.
+        </div>
+        <div class="card">
+          <b>Controls</b>
+          STC, Start STC, Marshal, and Open Control points can include notes and optional trip/control line coordinates.
+        </div>
+      </div>
+
+
+      <h2>Insert WP After Selected</h2>
+      <p>Use <b>Insert WP After Selected</b> when you need to add a normal waypoint or instruction point into an existing route.</p>
+      <p>First select the waypoint or control that comes <b>before</b> the new point. Then select <b>Insert WP After Selected</b>. Mapping confirms the insertion position, and the selected card moves to a simple bottom-right card so it does not block the map. Click the map where the new waypoint should be added.</p>
+      <p>After the new waypoint is added, Insert mode turns off automatically and the bottom-right card closes.</p>
+      <div class="note">
+        Use <b>Insert WP After Selected</b> for normal route points. Use <b>Breadcrumb</b> for route-shaping points only.
+      </div>
+
+      <h2>Breadcrumbs</h2>
+      <p>Breadcrumb mode is for sketching or refining the route path between important points.</p>
+      <p>To add breadcrumbs at the <b>end of the route</b>, turn <b>Breadcrumb ON</b>, click the map in driving order, then turn <b>Breadcrumb OFF</b> when done.</p>
+      <p>To insert breadcrumbs <b>within an existing route</b>, first select the previous breadcrumb. If the card blocks the map, select <b>Move card to corner</b>. Then turn <b>Breadcrumb ON</b>, click the map to add the new breadcrumb or breadcrumbs, and turn <b>Breadcrumb OFF</b> when done.</p>
+      <div class="note warn">
+        When you start adding normal waypoints or surveyed controls, Breadcrumb is automatically turned off. This protects the route from accidental breadcrumb placement while doing normal route editing.
+      </div>
+
+      <div class="roleTD7">
+      <h2>Trip lines and control lines</h2>
+      <p>For STC and Start STC controls, a red trip/control line can be drawn or supplied from field data. This line is the timing/checking reference used later by the rally app workflow.</p>
+      <p>Field data centre points may be more accurate than manually plotted map points. If replacing a control with imported field data, check that the line is still appropriate and regenerate or redraw the trip line where needed.</p>
+
+      </div>
+
+      <h2>Import Field Data</h2>
+      <p>Use <b>Import Field Data</b> to bring in data captured from the Rally Field Tool. Imported controls, waypoints, Trip Marks, notes and Route Survey data are shown first as field-reference information. They do <b>not</b> become part of the formal blue mapped route automatically.</p>
+
+      <h3>Adding imported details to the route</h3>
+      <ol>
+        <li>Select <b>Import Field Data</b> and load the Field Tool file.</li>
+        <li>The imported controls, waypoints and Trip Marks appear on the map and in the <b>Imported Field Data</b> cards.</li>
+        <li>Use <b>Zoom</b>, or select the imported point on the map, to review its GPS position and captured note.</li>
+        <li>From the map popup, use <b>Open Google Earth</b>, <b>Open Maps Satellite View</b>, or <b>Open Maps Street View</b> when you want to inspect the location before accepting it.</li>
+        <li>If a <b>Trip Mark</b> needs a small position correction, drag its marker on the map before adding it. This is useful when a field run was travelled in the opposite direction and the mark needs to be moved to the correct side of the road for the formal OSRM route. Dragging changes only the Mapping working position of that Trip Mark; the imported Route Survey remains unchanged. The move can be restored with <b>Undo</b>.</li>
+        <li>If the point belongs in the formal route, select <b>Add to Route</b>. Mapping uses the Trip Mark's adjusted position if it has been moved.</li>
+        <li>A captured waypoint or control keeps its Field Tool type and note when it is added.</li>
+        <li>A <b>Trip Mark</b> is added as a normal Instruction waypoint and carries its captured note.</li>
+        <li>Mapping places the new point into the route according to its position along the mapped route and recalculates the route.</li>
+      </ol>
+
+      <p>Once an imported point has been added, it becomes a normal Mapping route point and can be edited in the usual way. Imported points that are not added remain field-reference information only<span class="roleTD7"> and are not supplied to Schedule</span>.</p>
+
+      <p class="roleTD7">Imported notes are kept with the related waypoint or control. When the saved rally map is later imported into the Schedule page, only the ordered Waypoints and Controls with their notes are used; breadcrumbs are excluded.</p>
+      <p>If the Field Data contains a <b>Route Survey</b>, Mapping shows it as a separate dotted reference line over the map. The Route Survey is only a field reminder of the road that was driven; it does not alter the formal blue mapped route, route distances<span class="roleTD7">, Schedule data</span>, or OSRM routing.</p>
+      <p>Use <b>Show / Hide</b> to temporarily hide or restore the Route Survey while checking the formal route. The survey data is retained while hidden, and the selected visibility is retained when the Mapping file is saved and reopened.</p>
+      <div class="note">
+        <b>Clear Imported Field Data</b> removes the remaining imported field-reference data, including the Route Survey. It does not remove or change the formal blue mapped route.
+      </div>
+
+
+      <h2>Distance calibration</h2>
+      <p><b>Distance CAL</b> lets you compare a mapped distance with an independently measured distance, then apply a controlled percentage correction to the rally distances without changing the route geometry.</p>
+      <p>The comparison and the correction are deliberately separate. The calculated <b>Error %</b> shows what was measured; the <b>Correction %</b> is the value you decide to apply.</p>
+
+      <div class="note">
+        <b>Principle:</b> Mapping keeps the raw OSRM/map distance as the underlying route truth. A correction changes the rally distance values only; the raw map distance remains available for checking and audit.
+      </div>
+
+      <h3>Using Distance CAL</h3>
+      <ol>
+        <li>Select <b>Distance CAL</b> at the bottom of the left panel.</li>
+        <li>Enter the <b>Mapped distance</b> used for your comparison.</li>
+        <li>Enter the independently <b>Measured distance</b>, for example a Rally Field Tool GPS odometer result, calibrated fifth wheel measurement, or other agreed reference.</li>
+        <li>Mapping calculates and displays the <b>Error %</b>.</li>
+        <li>Enter the <b>Correction % (+ / -)</b> you want Mapping to apply. This does not have to be identical to the calculated error.</li>
+        <li>Select <b>Apply Correction</b>.</li>
+      </ol>
+
+      <p>Example: if the Mapped distance is <code>44.000 km</code> and the Measured distance is <code>44.040 km</code>, the displayed error is approximately <code>+0.091%</code>. You may then choose to apply a correction such as <code>+0.09%</code>.</p>
+
+      <h3>When calibration is active</h3>
+      <ul>
+        <li>A red warning is shown at the bottom-left of the map, for example <b>DIST CAL +0.09%</b>.</li>
+        <li>The warning remains visible while the applied correction is not <code>0.00%</code>.</li>
+        <li>Waypoint/control cards continue to show the corrected <b>Segment</b> and <b>Cumulative</b> rally distances.</li>
+        <li>When a correction is active, the waypoint popup also shows the applied factor and raw map cumulative distance, for example <b>CAL +0.09% · MAP 91.176 km</b>.</li>
+        <li>At <code>0.00%</code>, the extra CAL / MAP line is hidden.</li>
+        <li class="roleTD7">Start STC reset distances and the distances supplied to Schedule use the applied correction.</li><li class="roleTD2">Displayed Mapping distances use the applied correction while the raw OSRM/map distance remains retained for reference.</li>
+      </ul>
+
+      <h3>Apply, reopen and reset</h3>
+      <ul>
+        <li>After <b>Apply Correction</b>, the entered Mapped distance, Measured distance, calculated Error %, and Correction % are retained.</li>
+        <li>Reopening the Distance CAL card shows the comparison that was used as the reference for the applied correction.</li>
+        <li><b>Reset 0.00%</b> removes the applied correction, clears the comparison fields, returns Correction % to <code>0.00</code>, and leaves the Distance CAL card open.</li>
+      </ul>
+
+      <div class="note warn">
+        Calibration changes distance values only. It does <b>not</b> move the route, alter OSRM geometry, change waypoint order, or change the GPS coordinates of controls and trip lines.
+      </div>
+
+      <div class="roleTD7">
+      <h2>Mapping and the rally project</h2>
+      <p>Mapping is part of the rally project. Each rally day and route has its own Mapping working data, which is retained with the project.</p>
+      <p>Route 1 and Route 2 remain separate so each route can be opened and edited independently. Their versioned map files are stored in the matching route folders.</p>
+      <p><b>Save Route</b> saves a versioned map file in the active route folder and updates the Mapping working copy for that route.</p>
+      <p>When the rally project is saved, its Schedule data, active route selection, Mapping data and imported-map identity are saved together as one integrated rally project.</p>
+
+      <div class="note">
+        <b>Save Route</b> creates a reusable version of the active map.<br>
+        <b>Save Project</b> saves the complete rally project, including its integrated Schedule and Mapping data.
+      </div>
+
+      </div>
+
+      <div class="roleTD7">
+      <h2>Updating Schedule from Mapping</h2>
+      <p>Changes made in Mapping do not alter the Schedule rows until the revised map is imported.</p>
+      <ol>
+        <li>Make the route changes in Mapping.</li>
+        <li>Select <b>Save Route</b>.</li>
+        <li>Open Schedule and select the matching day and route.</li>
+        <li>Select <b>Import Mapped Route</b>.</li>
+        <li>Select the revised map from the active route folder.</li>
+        <li>Check that the Map and Schedule identity warning has cleared.</li>
+        <li>Save the rally project.</li>
+      </ol>
+      <p>Saving the rally project retains the updated Schedule and Mapping data together.</p>
+
+      </div>
+
+      <h2>Share Route</h2>
+      <p><b>Share Route</b> is intentionally simple. It does not create another download or compose an email. It helps you find the already-saved route JSON so Windows can send the file using your normal method.</p>
+      <ol>
+        <li>Save the route first so the required JSON exists in the active route folder.</li>
+        <li>Select <b>Share Route</b>.</li>
+        <li>Select <b>Open Route Folder</b>.</li>
+        <li>In the Windows file window, right-click the required route JSON file and send/share it using Email, or another suitable method available on your computer.</li>
+        <li>Select <b>Cancel</b> on the Share Route card when finished.</li>
+      </ol>
+      <div class="note">
+        Share Route uses the saved route file. It does not create a duplicate JSON in Downloads.
+      </div>
+
+      <h2>Sharing a map route with the Field App</h2>
+      <p>The purpose of sharing the Mapping JSON is to get the saved route onto the mobile device used with the Rally Field App for <b>Route Validation</b>.</p>
+      <ol>
+        <li>Finish or update the route in Mapping and select <b>Save Route</b>.</li>
+        <li>Select <b>Share Route</b>, then <b>Open Route Folder</b>.</li>
+        <li>Right-click the required route JSON file and send/share it to the mobile device using Email, or another suitable method.</li>
+        <li>On the mobile device, open the Email or message and download the JSON file.</li>
+        <li>Open the Rally Field App and select <b>Route Validation</b>.</li>
+        <li>Select <b>Load Route to Validate</b>, then select the downloaded mapping JSON file.</li>
+        <li>Select the waypoint where the validation run will start, then use either <b>Start Trip Now</b> for a standing start or <b>Arm Start at Waypoint</b> for an automatic start when that waypoint is detected.</li>
+      </ol>
+      <p>During the run, the Field App uses each waypoint or control's mapped cumulative distance and compares it with the GPS trip distance recorded when the point or trip line is detected. Each updated card shows the mapped distance, GPS distance, and the difference between them.</p>
+      <p>Trip lines use automatic line-crossing detection. Centre-only waypoints use 30 m radius detection. This allows the route distances to be checked point by point and shows whether the GPS distance remains aligned with the mapped route over the full section.</p>
+      <div class="note">
+        The saved Mapping JSON is the route file used for Field App validation. Breadcrumbs remain mapping support detail and are not used as validation cards.
+      </div>
+
+      <div class="roleTD7">
+      <h2>Using Mapping with Schedule</h2>
+      <p>A saved rally map is imported into Schedule using <b>Import Mapped Route</b>.</p>
+      <ul>
+        <li>When Route 1 is active, the file picker opens in <code>Maps/Route 1</code>.</li>
+        <li>When Route 2 is active, the file picker opens in <code>Maps/Route 2</code>.</li>
+      </ul>
+      <p>The import uses the ordered Waypoints and Controls, together with their notes and mapped distances. Breadcrumbs are not imported because they are Mapping support points used only to shape the route.</p>
+
+      <h3>Mapped route ownership</h3>
+      <p>Waypoints and Controls imported from Mapping remain owned by Mapping.</p>
+      <ul>
+        <li>Mapped distances are locked in Schedule.</li>
+        <li>Controls cannot be added in Schedule when the route is based on an imported map.</li>
+        <li>New STC, Start STC, Marshal and Open Control points must be added in Mapping.</li>
+        <li>Mapped Waypoints and Controls must be moved, changed or deleted in Mapping.</li>
+        <li>After changing the route, save the revised map and import it into Schedule again.</li>
+      </ul>
+      <p>This protects the mapped route structure and prevents Schedule editing from breaking the route order, distances or control positions.</p>
+
+      <h3>Schedule additions</h3>
+      <p>Schedule may add its own Instruction and Added Time rows around the mapped route.</p>
+      <ul>
+        <li>These rows belong to Schedule rather than Mapping.</li>
+        <li>They can be edited or deleted in Schedule.</li>
+        <li>They are preserved when the mapped route is imported again.</li>
+      </ul>
+
+      <h3>Map and Schedule identity</h3>
+      <p>Schedule records the exact imported mapping filename and map identity. Saving a newer map in Mapping does not automatically update the Schedule rows.</p>
+      <p>Save the revised route, import it into the matching Schedule day and route, check that the warning has cleared, and then save the rally project.</p>      </div>
+
+      
+      </div>
+    </section>
+  </main>
+</body>
+</html>

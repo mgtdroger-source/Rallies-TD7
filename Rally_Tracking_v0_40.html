@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Rally Tracking v0.40</title>
+  <script>
+    const TRACKING_KEY = 'RALLY-TRACKING';
+  </script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --ink:#111827;
+      --muted:#64748b;
+      --line:#cbd5e1;
+      --panel:#ffffff;
+      --soft:#f8fafc;
+      --blue:#2563eb;
+      --green:#16a34a;
+      --grey:#94a3b8;
+      --orange:#f59e0b;
+      --red:#dc2626;
+      --header-h:58px;
+      --dot-size:14px;
+      --history-size:7px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;overflow:hidden;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:#e5e7eb}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    #app{height:100%;display:grid;grid-template-rows:var(--header-h) 1fr}
+    header{
+      display:grid;
+      grid-template-columns:auto auto auto auto 1fr auto auto;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      background:#fff;
+      border-bottom:1px solid var(--line);
+      z-index:1200;
+    }
+    .top-btn{
+      min-height:40px;
+      border:1px solid #9ca3af;
+      border-radius:9px;
+      background:#fff;
+      padding:7px 12px;
+      font-weight:700;
+      white-space:nowrap;
+      max-width:min(42vw,320px);
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .top-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+    #viewModeBtn{min-width:88px;max-width:88px;text-align:center}
+    .title-wrap{min-width:0;text-align:center}
+    .title{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    main{position:relative;min-width:0;min-height:0}
+    #map{height:100%;width:100%;background:#e5e7eb}
+    #mapStatus{
+      position:absolute;z-index:800;top:10px;left:50%;transform:translateX(-50%);
+      max-width:calc(100% - 150px);background:rgba(255,255,255,.95);
+      border:1px solid var(--line);border-radius:10px;padding:8px 12px;
+      box-shadow:0 2px 8px rgba(0,0,0,.12);font-size:13px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .test-controls{
+      position:absolute;z-index:850;right:10px;bottom:18px;
+      display:flex;gap:6px;background:rgba(255,255,255,.95);
+      border:1px solid var(--line);border-radius:10px;padding:6px;
+      box-shadow:0 2px 8px rgba(0,0,0,.15);
+    }
+    .test-controls button{
+      min-width:64px;min-height:38px;border:1px solid #9ca3af;border-radius:8px;
+      background:#fff;font-weight:700;padding:6px 9px;
+    }
+    .test-controls button.run{background:#dcfce7;border-color:#86efac}
+    .test-controls button.pause{background:#fef3c7;border-color:#fcd34d}
+    .test-controls button.reset{background:#fee2e2;border-color:#fca5a5}
+    .test-controls select{
+      min-width:66px;min-height:38px;border:1px solid #9ca3af;border-radius:8px;
+      background:#fff;font-weight:700;padding:5px 7px;
+    }
+    .leaflet-control-zoom{margin-top:54px!important}
+    .centre-control a{
+      width:34px!important;height:34px!important;line-height:32px!important;
+      font-size:18px!important;font-weight:700!important;
+    }
+    .card-backdrop{
+      position:absolute;inset:0;z-index:1400;background:rgba(15,23,42,.24);
+      display:none;align-items:flex-start;justify-content:flex-start;padding:70px 12px 12px;
+    }
+    .card-backdrop.open{display:flex}
+    #entrantBackdrop{
+      overflow:visible;
+      background:transparent;
+      pointer-events:none;
+      padding:70px 12px 12px;
+    }
+    #entrantBackdrop.open{display:flex}
+    #entrantBackdrop #entrantCard{pointer-events:auto}
+    .card{
+      width:min(390px,calc(100vw - 24px));max-height:calc(100vh - 90px);overflow:auto;
+      background:#fff;border:1px solid var(--line);border-radius:14px;
+      box-shadow:0 14px 36px rgba(0,0,0,.24);padding:14px;
+    }
+    .card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+    .card h2{font-size:18px;margin:0}
+    .close-btn{border:1px solid #9ca3af;background:#fff;border-radius:8px;min-height:36px;padding:6px 10px;font-weight:700}
+    .pill{border:1px solid var(--line);border-radius:999px;background:var(--soft);padding:7px 10px;font-size:12px;margin-bottom:12px}
+    .menu-list{display:grid;gap:7px}
+    .menu-btn{
+      width:100%;min-height:42px;text-align:left;border:1px solid #9ca3af;
+      border-radius:9px;background:#fff;padding:8px 10px;font-weight:700;
+    }
+    .menu-btn.active{background:#dbeafe;border-color:#60a5fa}
+    #entrantCard{
+      height:auto;
+      max-height:calc(100vh - 90px);
+      min-height:0;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    #entrantCard .card-head,
+    #entrantCard .pill,
+    #entrantCard .menu-list.view-switch{
+      flex:0 0 auto;
+    }
+    #entrantResults{
+      flex:1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
+      padding-right:4px;
+      overscroll-behavior:contain;
+    }
+    #entrantResults .section-title{margin-top:12px}
+    .section-title{font-size:12px;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin:14px 0 7px}
+    .setting-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #e2e8f0}
+    .setting-row:last-child{border-bottom:0}
+    .segmented{display:flex;gap:4px}
+    .segmented button{
+      min-width:48px;min-height:36px;border:1px solid #9ca3af;border-radius:8px;background:#fff;font-weight:700;
+    }
+    .segmented button.active{background:#dbeafe;border-color:#60a5fa}
+    #markerLabelControls button{min-width:auto;padding:0 10px;white-space:nowrap}
+    .entrant-trail-row{padding:4px 0 10px;margin-bottom:7px;border-bottom:0}
+    #entrantTrailControls button{min-width:auto;padding:0 10px;white-space:nowrap}
+    .placeholder{padding:14px;border:1px dashed #94a3b8;border-radius:10px;background:#f8fafc;color:#475569;line-height:1.5}
+    .control-marker{display:flex;align-items:flex-start;pointer-events:auto}
+    .control-pin{display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
+    .control-pin svg{display:block}
+    .control-label{
+      background:rgba(255,255,255,.98);display:flex;align-items:center;justify-content:center;
+      box-shadow:0 1px 3px rgba(0,0,0,.2);font-weight:900;color:#111827;white-space:nowrap;
+    }
+    .control-marker.detail{width:136px;height:43px;gap:6px}
+    .control-marker.detail .control-pin{width:34px;height:43px;flex:0 0 34px}
+    .control-marker.detail .control-pin svg{width:34px;height:43px}
+    .control-marker.detail .control-label{
+      margin-top:4px;min-height:30px;padding:0 11px;border:2px solid rgba(17,24,39,.65);
+      border-radius:11px;font-size:10px;line-height:1;
+    }
+    .control-marker.medium{width:28px;height:34px;display:block}
+    .control-marker.medium .control-pin{width:28px;height:34px}
+    .control-marker.medium .control-pin svg{width:28px;height:34px}
+    .control-marker.compact{width:20px;height:26px;display:block}
+    .control-marker.compact .control-pin{width:20px;height:26px}
+    .control-marker.compact .control-pin svg{width:20px;height:26px}
+    .control-pin-number{font-family:Arial,Helvetica,sans-serif;font-weight:900;fill:#dc2626;text-anchor:middle;dominant-baseline:middle}
+    .control-marker.medium .control-pin-number{font-size:9px}
+    .control-marker.compact .control-pin-number{font-size:8px}
+    .entrant-hit{
+      position:relative;width:54px;height:30px;display:flex;align-items:center;
+    }
+    .entrant-dot-wrap{
+      width:30px;height:30px;display:grid;place-items:center;flex:0 0 30px;
+    }
+    .entrant-number{
+      margin-left:1px;padding:1px 4px;border:1px solid rgba(100,116,139,.75);border-radius:5px;
+      background:rgba(255,255,255,.9);color:#111827;font-size:10px;line-height:14px;font-weight:800;
+      white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.2);
+    }
+    .entrant-hit:has(.entrant-dot.card-selected) .entrant-number{
+      border-color:#dc2626;color:#b91c1c;background:rgba(255,255,255,.96);
+    }
+    .entrant-dot{
+      width:var(--dot-size);height:var(--dot-size);border-radius:50%;
+      background:var(--green);border:2px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.62);
+    }
+    .entrant-dot.faded{opacity:.34;filter:saturate(.6)}
+    .entrant-dot.past{background:var(--grey)}
+    .entrant-dot.stopped{animation:wink 1.2s steps(2,end) infinite}
+    .entrant-dot.delayed{background:var(--orange)}
+    .entrant-dot.stale{background:var(--orange);animation:wink 1.2s steps(2,end) infinite}
+    .entrant-dot.selected{box-shadow:0 0 0 5px rgba(37,99,235,.4),0 1px 7px rgba(0,0,0,.7)}
+    .history-dot{
+      width:var(--history-size);height:var(--history-size);border-radius:50%;background:#111827;
+      border:1px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.45);transform:translate(-50%,-50%);
+    }
+    @keyframes wink{0%,45%{opacity:1}50%,95%{opacity:.2}100%{opacity:1}}
+    .popup-track{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap}
+    .popup-track button{border:1px solid #9ca3af;background:#fff;border-radius:6px;padding:4px 7px;font-size:12px;font-weight:700}
+    .popup-track button.active{background:#dbeafe;border-color:#60a5fa}
+
+    .fixed-entrant-card{
+      position:absolute;left:12px;bottom:16px;z-index:900;
+      width:min(360px,calc(100% - 24px));
+      background:rgba(255,255,255,.97);
+      border:1px solid var(--line);
+      border-radius:12px;
+      box-shadow:0 4px 16px rgba(0,0,0,.22);
+      padding:12px;
+      display:none;
+    }
+    .fixed-entrant-card.open{display:block}
+    .fixed-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}
+    .fixed-card-title{font-weight:800;line-height:1.25}
+    .fixed-card-close{
+      border:1px solid #9ca3af;background:#fff;border-radius:7px;
+      min-width:34px;min-height:32px;font-weight:800;
+    }
+    .fixed-card-detail{font-size:13px;line-height:1.5}
+    .fixed-card-track{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}
+    .fixed-card-track button{
+      border:1px solid #9ca3af;background:#fff;border-radius:7px;
+      min-height:34px;padding:5px 9px;font-size:12px;font-weight:700;
+    }
+    .fixed-card-track button.active{background:#dbeafe;border-color:#60a5fa}
+    .entrant-dot.card-selected{
+      background:#dc2626;
+      box-shadow:0 0 0 5px rgba(220,38,38,.24),0 1px 7px rgba(0,0,0,.7);
+    }
+    .entrant-dot.card-selected.stopped{animation:wink 1.2s steps(2,end) infinite}
+    .entrant-dot.card-selected.delayed{box-shadow:0 0 0 5px rgba(245,158,11,.55),0 1px 7px rgba(0,0,0,.7)}
+    .entrant-dot.card-selected.stale{box-shadow:0 0 0 5px rgba(245,158,11,.55),0 1px 7px rgba(0,0,0,.7);animation:wink 1.2s steps(2,end) infinite}
+    .entrant-dot.card-selected.past{box-shadow:0 0 0 5px rgba(148,163,184,.65),0 1px 7px rgba(0,0,0,.7)}
+
+    /* v0.40: Keep floating Entrants panel open when selecting an entrant; selection updates map without closing the panel. */
+    /* v0.39: Entrants card becomes a floating non-modal panel so the map remains pannable/zoomable while the card stays open. */
+    /* v0.38: Entrant trail selector moved from Settings/fixed card into the Entrants list: None / 5 min / 10 min / All. */
+    /* v0.37: Cleanup-only release: remove obsolete embedded development simulator/log; preserve proven live Tracking and Event Replay. */
+    /* v0.37: Breadcrumb trail visual baseline strengthened to weight 3 / opacity .70. */
+    /* v0.36: Selected-entrant breadcrumbs now use true GPS-time 5/10 minute windows and never draw in All Entrants view. */
+    /* v0.36: Add fresh-report Stopped status after 5 minutes within a 40 m movement envelope; Delayed/Stale age rules remain authoritative. */
+    /* v0.35: Return to Live now fully abandons Event Replay, clears replay state and controls, resets entrants to All Entrants, then performs a fresh live Tracking read. */
+    /* v0.34: Event Replay adds a Replay date selector from the recorded Google tracking history; date change resets optional start time and rebuilds entrant choices from records on that date. */
+    /* v0.33: Tracking share link now requests the shell-owned trackingApp URL; remove the hard-coded mobile Tracking GitHub URL from this page. */
+    /* v0.32: Event Replay sends the active project day date to trackingRead so saved historical rallies replay their own event day; Live Tracking remains current-day only. */
+    /* v0.31: Use the Rally App Admin Google connection; remove separate Tracking setup, embedded Code.gs and setup guide. */
+    /* v0.34: Add permanent Help button and embedded generic Tracking help card. */
+    /* v0.32: Settings adds entrant marker labels None / Number / Number + Name; default Number. */
+    /* v0.35: Default selected-entrant trail changed from 5 min to None. */
+    /* v0.31: Demo rally-number labels beside entrant dots; label remains part of the clickable marker. */
+    /* v0.30: Selected entrant marker refresh key includes fixed-card selection, keeping the followed dot red. */
+    /* v0.30: Release Upload immediately after Google accepts the event; refresh Tracking status separately so a slow status check cannot leave Upload stuck busy. */
+    /* v0.29: Tracking card opens horizontally centred and nearer the top of the desktop window. */
+    #trackingBackdrop{justify-content:center;padding:40px 16px 16px}
+    .tracking-card{width:min(720px,calc(100vw - 32px));max-height:90vh;overflow:auto;padding:20px 24px}
+    .tracking-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:8px}
+    .tracking-head h2{font-size:18px}
+    .tracking-head .close-btn{justify-self:end;border-radius:999px;padding:7px 10px;font-size:12px}
+    .connection-pill{justify-self:center;border-radius:999px;padding:2px 8px;font-size:12px;background:#fee2e2;color:#991b1b;white-space:nowrap;font-weight:600}
+    .connection-pill.connected{background:#dcfce7;color:#166534}
+    .admin-section{border:1px solid #e5e7eb;border-radius:12px;background:#f9fafb;padding:12px 14px;margin-top:6px}
+    .admin-section-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .admin-section-title{font-size:15px;font-weight:800;white-space:nowrap}
+    .admin-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .admin-action{border:0;border-radius:999px;background:#aab2bf;color:#fff;padding:7px 10px;font-size:12px;font-weight:700;white-space:nowrap}
+    .admin-action.dark{background:#374151}
+    .admin-action.blue{background:#2563eb}
+    .admin-action.outline{background:#fff;color:#111827;border:1px solid #9ca3af;padding:7px 10px}
+    .admin-action:disabled{opacity:.55;cursor:not-allowed}
+    .setup-title{font-size:15px;font-weight:800;margin:10px 2px 2px}
+    .setup-copy{color:#6b7280;line-height:1.35;margin-bottom:6px}
+    .setup-grid{display:grid;grid-template-columns:220px minmax(0,1fr);align-items:center;gap:8px}
+    .setup-label{color:#374151}
+    .setup-input{width:100%;min-height:38px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;padding:9px 12px;color:#111827}
+    .connection-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
+    .tracking-note{font-size:12px;color:#6b7280;margin-top:6px}
+    .mobile-setup-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .mobile-setup-label{color:#374151;line-height:1.25}
+    .mobile-setup-input{width:210px;max-width:42%;min-height:38px;border:1px solid #e5e7eb;border-radius:999px;background:#fff;padding:9px 14px;color:#111827}
+    .upload-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px}
+    .upload-status{font-size:12px;color:#6b7280;margin-top:7px;line-height:1.4}
+    .upload-status.ok{color:#166534;font-weight:700}
+    .upload-status.bad{color:#991b1b;font-weight:700}
+
+
+    /* v0.28: Event Replay refreshes Tracking log status on open; Reset renamed Restart. */
+    /* v0.29: Retain the last confirmed Tracking log URL and prevent overlapping Google status checks. */
+    /* v0.27: Add Open Track Log to the Event Replay header and open the Tracking worksheet directly. */
+    /* v0.26: Make STC markers zoom-responsive: compact numbered pointer at overview zoom, medium pointer at mid zoom, full labelled pin only at close zoom. */
+    /* v0.25: Keep the tracking-log button state owned by Google status; recheck after connection test and event upload. */
+    /* v0.24: Tracking card performs a dedicated read-only Google status check on open; Code.gs v0.12 reports existing event rows and log URL. */
+    /* v0.23: Replace on-road STC pills with moderate-size map pins anchored at the exact coordinate, with separate side labels. */
+    /* v0.21: Rebuild Event Replay around a fixed clock anchor and preprocessed point data; redraw only when a displayed record changes. */
+    /* v0.20: Open the Tracking setting-up guide through the Shell document overlay. */
+    /* v0.18: Request Tracking Help by dashboard-controlled document key instead of a direct filename. */
+    /* v0.17: Move Tracking Help to a separate Shell document and add Event Replay guidance. */
+    /* v0.16: Move the quick Replay speed panel to the left of REPLAY and set the default speed to 1×. */
+    /* v0.15: Add an always-visible Replay speed panel with 1× / 2× / 5× / 20×, synchronised with the Replay card. */
+    /* v0.14: Add Event Replay from recorded Tracking-sheet GPS positions; no bridging or invented movement. */
+    /* v0.13: Compact mode no longer overrides entrant dot size; S / M / L remains effective. */
+    /* v0.12: Tracking-card polish: live log button, green WhatsApp, and Admin-matched upload busy dots/toast. */
+    /* v0.11: Read live Tracking-sheet positions every 15 seconds and display them in the Rally App Tracking map. */
+    /* v0.10: Enable and highlight Copy, Email and WhatsApp link buttons immediately after a successful tracking upload. */
+    /* v0.09: Fix missing parenthesis in Clear Tracking Connection handler; correct embedded Code.gs heading to v0.05. */
+    /* v0.08: Use permanent RALLY-TRACKING key throughout, remove TEST naming, update Code.gs viewer reference, and match Admin-style upload progress/toast feedback. */
+    /* v0.07: Move the editable mobile Tracking GitHub URL to a clearly labelled USER EDIT SETTINGS block near the top; set Rally-App-Tracking URL. */
+    /* v0.06: Switching from Controls back to All Entrants keeps the Entrants card open. */
+    /* v0.05: Entrants card height is based on the Shell content area, preventing page-level overflow; only the results list scrolls. */
+    /* v0.04: Entrants card uses a fixed header with a full-height list scroller; All Entrants and Controls now show only their selected list. */
+    /* v0.03: Read active entrants from TD_RALLIES and the active day/route map from the project-scoped Mapping key; upload that live Rally App event package. */
+    /* Rally App branch v0.01: start Rally App branch from frozen demo v0.43; remove simulator UI and hydrate event context from TD_RALLIES. */
+    /* v0.42: desktop Normal / Compact density mode. Leaflet map geometry is not zoom-scaled. */
+    body.tracking-compact{--header-h:50px;--history-size:6px}
+    body.tracking-compact header{gap:6px;padding:6px 8px}
+    body.tracking-compact .top-btn{min-height:34px;padding:5px 9px;border-radius:8px;font-size:12px}
+    body.tracking-compact #viewModeBtn{min-width:88px;max-width:88px}
+    body.tracking-compact .title{font-size:13px}
+    body.tracking-compact .sub{font-size:10px}
+    body.tracking-compact #mapStatus{top:7px;padding:6px 9px;font-size:11px;border-radius:8px}
+    body.tracking-compact .test-controls{right:8px;bottom:12px;gap:4px;padding:4px;border-radius:8px}
+    body.tracking-compact .test-controls button,body.tracking-compact .test-controls select{min-height:32px;min-width:54px;padding:4px 7px;font-size:11px;border-radius:7px}
+    body.tracking-compact .leaflet-control-zoom{margin-top:44px!important}
+    body.tracking-compact .card-backdrop{padding-top:54px}
+    body.tracking-compact #trackingBackdrop{padding-top:28px}
+    body.tracking-compact .card{padding:11px;border-radius:11px;max-height:calc(100vh - 68px)}
+    body.tracking-compact #entrantCard{height:100%;max-height:100%;min-height:0}
+    body.tracking-compact .tracking-card,body.tracking-compact .help-card{padding:15px 18px;max-height:94vh}
+    body.tracking-compact .card-head{margin-bottom:8px}
+    body.tracking-compact .card h2,body.tracking-compact .tracking-head h2{font-size:15px}
+    body.tracking-compact .close-btn{min-height:31px;padding:4px 8px;font-size:11px}
+    body.tracking-compact .pill{padding:5px 8px;margin-bottom:8px;font-size:11px}
+    body.tracking-compact .menu-list{gap:5px}
+    body.tracking-compact .menu-btn{min-height:36px;padding:6px 8px;font-size:12px}
+    body.tracking-compact .section-title{margin:10px 0 5px;font-size:10px}
+    body.tracking-compact .setting-row{gap:8px;padding:6px 0;font-size:12px}
+    body.tracking-compact .segmented button{min-height:30px;min-width:42px;font-size:11px}
+    body.tracking-compact .admin-section{padding:8px 10px;margin-top:4px;border-radius:10px}
+    body.tracking-compact .admin-section-title,body.tracking-compact .setup-title{font-size:13px}
+    body.tracking-compact .admin-action{padding:5px 8px;font-size:10px}
+    body.tracking-compact .setup-copy,body.tracking-compact .tracking-note{font-size:10px}
+    body.tracking-compact .setup-grid{grid-template-columns:185px minmax(0,1fr);gap:6px;font-size:12px}
+    body.tracking-compact .setup-input{min-height:32px;padding:6px 9px;font-size:12px}
+    body.tracking-compact .fixed-entrant-card{left:9px;bottom:10px;padding:9px;width:min(320px,calc(100% - 18px))}
+    body.tracking-compact .fixed-card-title{font-size:13px}
+    body.tracking-compact .fixed-card-detail{font-size:11px}
+    body.tracking-compact .fixed-card-track{margin-top:7px}
+    body.tracking-compact .fixed-card-track button{min-height:29px;padding:4px 7px;font-size:10px}
+
+    @media (max-width:680px){
+      :root{--header-h:56px}
+      header{grid-template-columns:repeat(3,1fr);padding:7px 8px}
+      .title-wrap{display:none}
+      #trackingBtn{display:none}
+      #viewModeBtn{display:none}
+      #replayBtn{display:none}
+      .top-btn{max-width:none;width:100%;padding:6px 8px}
+      #mapStatus{top:8px;max-width:calc(100% - 90px);font-size:12px;padding:7px 9px}
+      .test-controls{right:7px;bottom:8px;gap:4px;padding:4px}
+      .test-controls button{min-width:52px;min-height:36px;padding:5px 7px;font-size:12px}
+      .leaflet-control-zoom{margin-top:50px!important}
+      .card-backdrop{padding-top:66px;justify-content:center}
+      #entrantCard{height:100%;max-height:100%;min-height:0}
+      .fixed-entrant-card{
+        left:7px;right:7px;bottom:7px;width:auto;
+        border-radius:12px;padding:11px;
+      }
+      .test-controls{bottom:138px}
+    }
+    .tracking-card{position:relative}
+    .admin-action.whatsapp{background:#16a34a}
+    .admin-action.busy{opacity:.7;cursor:default}
+    .admin-action.busy .dots5{display:inline-flex}
+    .dots5{display:none;align-items:center;gap:4px;margin-left:8px;vertical-align:middle}
+    .dots5 i{display:block;width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.35;animation:dots5 1s infinite ease-in-out}
+    .dots5 i:nth-child(1){animation-delay:0ms}
+    .dots5 i:nth-child(2){animation-delay:120ms}
+    .dots5 i:nth-child(3){animation-delay:240ms}
+    .dots5 i:nth-child(4){animation-delay:360ms}
+    .dots5 i:nth-child(5){animation-delay:480ms}
+    @keyframes dots5{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+    .tracking-toast{position:absolute;right:16px;bottom:16px;background:#111827;color:#fff;border-radius:10px;padding:10px 14px;opacity:0;transform:translateY(10px);transition:.25s;z-index:30;pointer-events:none}
+    .tracking-toast.show{opacity:1;transform:translateY(0)}
+
+    /* Event Replay v0.14 */
+    #replayBackdrop{justify-content:center;padding:40px 16px 16px}
+    .replay-card{width:min(620px,calc(100vw - 32px));max-height:90vh;overflow:auto;padding:20px 24px}
+    .replay-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:12px}
+    .replay-head h2{justify-self:start}
+    .replay-head .replay-log-btn{justify-self:center;border:1px solid #9ca3af;background:#fff;border-radius:8px;min-height:36px;padding:6px 10px;font-weight:700;white-space:nowrap}
+    .replay-head .replay-log-btn.blue{background:#2563eb;border-color:#2563eb;color:#fff}
+    .replay-head .replay-log-btn:disabled{opacity:.55;cursor:not-allowed}
+    .replay-head .close-btn{justify-self:end}
+    .replay-grid{display:grid;grid-template-columns:180px minmax(0,1fr);gap:10px 14px;align-items:center}
+    .replay-grid label{font-weight:700}
+    .replay-grid select,.replay-grid input{width:100%;min-height:40px;border:1px solid #9ca3af;border-radius:9px;background:#fff;padding:7px 10px}
+    .replay-range{margin:12px 0;padding:9px 11px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;font-size:13px}
+    .replay-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+    .replay-actions button{min-height:38px;border:1px solid #9ca3af;border-radius:8px;background:#fff;padding:7px 11px;font-weight:700}
+    .replay-actions .run{background:#dcfce7;border-color:#86efac}
+    .replay-actions .pause{background:#fef3c7;border-color:#fcd34d}
+    .replay-actions .stop{background:#fee2e2;border-color:#fca5a5}
+    .replay-actions .live{margin-left:auto;background:#2563eb;border-color:#2563eb;color:#fff}
+    #replayHud{position:absolute;z-index:1100;right:12px;top:10px;display:none;align-items:center;gap:6px}
+    #replayHud.visible{display:flex}
+    #replayIndicator{background:#dc2626;color:#fff;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;letter-spacing:.06em;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    #replayIndicator.running{animation:wink 1.2s steps(2,end) infinite}
+    #replayIndicator.paused{animation:none}
+    #replayQuickSpeed{display:flex;gap:3px;background:rgba(255,255,255,.96);border:1px solid var(--line);border-radius:999px;padding:3px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+    #replayQuickSpeed button{min-width:38px;min-height:30px;border:1px solid transparent;border-radius:999px;background:transparent;padding:4px 7px;font-size:11px;font-weight:800}
+    #replayQuickSpeed button.active{background:#dbeafe;border-color:#60a5fa;color:#1d4ed8}
+    body.tracking-compact .replay-card{padding:15px 18px}
+    body.tracking-compact #replayHud{right:8px;top:7px;gap:4px}
+    body.tracking-compact #replayIndicator{padding:5px 8px;font-size:10px}
+    body.tracking-compact #replayQuickSpeed button{min-width:32px;min-height:26px;padding:3px 5px;font-size:10px}
+    @media(max-width:680px){.replay-grid{grid-template-columns:1fr}.replay-actions .live{margin-left:0}#replayQuickSpeed{display:none}}
+
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <button id="entrantBtn" class="top-btn primary">Entrants</button>
+    <button id="settingsBtn" class="top-btn">Settings</button>
+    <button id="helpBtn" class="top-btn">Help</button>
+    <button id="replayBtn" class="top-btn">Event Replay</button>
+    <div class="title-wrap">
+      <div class="title">Rally Tracking</div>
+      <div class="sub" id="eventContextSub">Awaiting Rally App context</div>
+    </div>
+    <button id="viewModeBtn" class="top-btn" type="button" aria-pressed="false" title="Toggle Compact view (screen only)">Normal</button>
+    <button id="trackingBtn" class="top-btn primary">Tracking</button>
+  </header>
+
+  <main>
+    <div id="map"></div>
+    <div id="mapStatus"><strong>TRACKING:</strong> Reading active Rally App event…</div>
+    <div id="replayHud">
+      <div id="replayQuickSpeed" aria-label="Replay speed">
+        <button type="button" data-replay-speed="1" class="active">1×</button>
+        <button type="button" data-replay-speed="2">2×</button>
+        <button type="button" data-replay-speed="5">5×</button>
+        <button type="button" data-replay-speed="20">20×</button>
+      </div>
+      <div id="replayIndicator" aria-live="polite">REPLAY</div>
+    </div>
+
+
+    <section id="fixedEntrantCard" class="fixed-entrant-card" aria-live="polite">
+      <div class="fixed-card-head">
+        <div id="fixedCardTitle" class="fixed-card-title"></div>
+        <button id="fixedCardClose" class="fixed-card-close" aria-label="Close entrant card">×</button>
+      </div>
+      <div id="fixedCardDetail" class="fixed-card-detail"></div>
+    </section>
+
+    <div id="entrantBackdrop" class="card-backdrop">
+      <section id="entrantCard" class="card" role="dialog" aria-modal="false" aria-labelledby="entrantCardTitle">
+        <div class="card-head">
+          <h2 id="entrantCardTitle">Entrants</h2>
+          <button class="close-btn" data-close="entrantBackdrop">Close</button>
+        </div>
+        <div class="pill">Select the event overview, a control, or one entrant.</div>
+        <div class="menu-list view-switch">
+          <button class="menu-btn active" data-view="all">All Entrants</button>
+          <button class="menu-btn" id="controlsViewBtn">Controls</button>
+        </div>
+        <div id="entrantResults">
+          <div id="controlListWrap" hidden>
+            <div class="section-title">Controls</div>
+            <div id="controlList" class="menu-list"></div>
+          </div>
+          <div id="entrantListWrap">
+            <div class="section-title">Entrants</div>
+            <div class="setting-row entrant-trail-row">
+              <div><strong>Trail</strong></div>
+              <div class="segmented" id="entrantTrailControls">
+                <button data-entrant-trail="none" class="active">None</button>
+                <button data-entrant-trail="5">5 min</button>
+                <button data-entrant-trail="10">10 min</button>
+                <button data-entrant-trail="all">All</button>
+              </div>
+            </div>
+            <div id="entrantList" class="menu-list"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+
+    <div id="replayBackdrop" class="card-backdrop">
+      <section class="card replay-card" role="dialog" aria-modal="true" aria-labelledby="replayCardTitle">
+        <div class="replay-head">
+          <h2 id="replayCardTitle">Event Replay</h2>
+          <button id="replayOpenTrackingLogBtn" class="replay-log-btn" type="button" disabled>Open Track Log</button>
+          <button class="close-btn" data-close="replayBackdrop">Close</button>
+        </div>
+        <div class="pill">Replay exact Tracking-sheet GPS records. No bridging or invented movement.</div>
+        <div class="replay-grid">
+          <label for="replayDateSelect">Replay date</label>
+          <select id="replayDateSelect"><option value="">Reading history…</option></select>
+          <label for="replayStartTime">Start time <span style="font-weight:400;color:#64748b">(optional)</span></label>
+          <input id="replayStartTime" type="time" step="1">
+          <label for="replayEntrantSelect">Entrants</label>
+          <select id="replayEntrantSelect"><option value="all">All entrants</option></select>
+          <label for="replaySpeedSelect">Replay speed</label>
+          <select id="replaySpeedSelect">
+            <option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option><option value="20">20×</option>
+          </select>
+        </div>
+        <div id="replayRange" class="replay-range">Open Event Replay to read the available recorded history.</div>
+        <div class="replay-actions">
+          <button id="replayStartBtn" class="run" type="button">Start</button>
+          <button id="replayPauseBtn" class="pause" type="button">Pause</button>
+          <button id="replayStopBtn" class="stop" type="button">Stop</button>
+          <button id="replayResetBtn" type="button">Restart</button>
+          <button id="replayReturnLiveBtn" class="live" type="button">Return to Live</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="settingsBackdrop" class="card-backdrop">
+      <section class="card" role="dialog" aria-modal="true" aria-labelledby="settingsCardTitle">
+        <div class="card-head">
+          <h2 id="settingsCardTitle">Settings</h2>
+          <button class="close-btn" data-close="settingsBackdrop">Close</button>
+        </div>
+        <div class="pill" id="settingsEventContext">Awaiting Rally App context</div>
+        <div class="setting-row">
+          <div><strong>Dot size</strong><br><span style="font-size:12px;color:#64748b">Entrant marker size</span></div>
+          <div class="segmented" id="dotSizeControls">
+            <button data-size="S">S</button><button data-size="M" class="active">M</button><button data-size="L">L</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Marker label</strong></div>
+          <div class="segmented" id="markerLabelControls">
+            <button data-label-mode="none">None</button><button data-label-mode="number" class="active">Number</button><button data-label-mode="number-name">Number + Name</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <div><strong>Control zoom</strong><br><span style="font-size:12px;color:#64748b">Used by Centre in Controls View</span></div>
+          <div class="segmented">
+            <button id="zoomDown">−</button><button id="zoomValue" disabled>16</button><button id="zoomUp">+</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="trackingBackdrop" class="card-backdrop">
+      <section class="card tracking-card" role="dialog" aria-modal="true" aria-labelledby="trackingCardTitle">
+        <div class="tracking-head">
+          <h2 id="trackingCardTitle">Tracking</h2>
+          <span id="trackingConnectionStatus" class="connection-pill">Not connected</span>
+          <button class="close-btn" data-close="trackingBackdrop">Close</button>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-row">
+            <div class="admin-section-title">Tracking data</div>
+            <div class="admin-actions">
+              <button id="openTrackingLogBtn" class="admin-action" type="button" disabled>Open tracking log</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-row">
+            <div>
+              <div class="admin-section-title">Upload tracking data</div>
+              <div id="trackingProjectTitle" class="setup-copy" style="margin:3px 0 0">Awaiting Rally App context</div>
+            </div>
+            <div class="admin-actions">
+              <button id="uploadTrackingDataBtn" class="admin-action dark" type="button">Upload tracking data</button>
+            </div>
+          </div>
+          <div id="trackingUploadStatus" class="upload-status" hidden></div>
+        </div>
+
+        <div class="admin-section">
+          <div class="admin-section-row">
+            <div class="admin-section-title">Tracking link</div>
+            <div class="admin-actions">
+              <button id="copyTrackingLinkBtn" class="admin-action" type="button" disabled>Copy link</button>
+              <button id="emailTrackingLinkBtn" class="admin-action" type="button" disabled>Email link</button>
+              <button id="whatsAppTrackingLinkBtn" class="admin-action whatsapp" type="button" disabled>WhatsApp</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="trackingToast" class="tracking-toast" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+  'use strict';
+
+  const SAMPLE_ROUTE = {"app":"Route Distance Capture","version":"1.17","exportType":"route_data","schemaVersion":4,"savedAt":"2026-07-26T11:29:39.411Z","identity":{"mapProjectId":"0b4814af-591b-47ba-891d-4c1803a5f110","rallyId":"RID-20260726-KUL01N","rallyTitle":"Crankhandle Sunday","day":"Day 1","route":"Route 1","description":"","fileName":"Crankhandle_Sunday_Day_1_Route_1_map_2026-07-26_1329.json","sourceFileName":"Crankhandle_Sunday_Day_1_Route_1_map_2026-07-26_0840.json","savedAt":"2026-07-26T11:29:39.411Z"},"rally":{"rallyId":"RID-20260726-KUL01N","title":"Crankhandle Sunday","day":"Day 1","route":"Route 1","notes":"","fileName":"Crankhandle_Sunday_Day_1_Route_1_map_2026-07-26_1329.json"},"scheduleImport":{"schema":"td.mapping.scheduleImport","schemaVersion":2,"generatedAt":"2026-07-26T11:29:39.413Z","distanceUnit":"km","distanceSource":"OSRM","totalDistance":42.882,"rally":{"title":"Crankhandle Sunday","day":"Day 1","route":"Route 1","notes":""},"rows":[{"routePointId":"3291cc84-c5d7-4f3f-9c68-25d052968435","sourceId":"d0a29353-8a4f-4e8f-a593-e09f61cc245c","sourceIndex":1,"label":"START","type":"Start","distance":0,"note":"","centre":{"lat":-34.118353159715966,"lng":18.38278375942824},"lineA":null,"lineB":null},{"routePointId":"20f26a78-164a-4433-9396-540d8ee80823","sourceId":"a81e8de7-0dd4-452b-b62d-4e6c87308198","sourceIndex":2,"label":"WP 2","type":"Instruction","distance":0.58,"note":"","centre":{"lat":-34.1149934886779,"lng":18.384028444675952},"lineA":null,"lineB":null},{"routePointId":"64da0e3d-705d-4084-82c5-5c654a011820","sourceId":"58c5ddd4-7107-4d30-95d8-d1ed4037f332","sourceIndex":3,"label":"WP 3","type":"Instruction","distance":2.8,"note":"","centre":{"lat":-34.09953417031106,"lng":18.38316404086746},"lineA":null,"lineB":null},{"routePointId":"ec24a77b-0f9b-4cf2-a1c1-1d25f1fd4561","sourceId":"e0122415-0765-47cc-99d9-b508fef7f13e","sourceIndex":4,"label":"STC 1","type":"STC","distance":4.084,"note":"","centre":{"lat":-34.106768,"lng":18.393871},"lineA":null,"lineB":null},{"routePointId":"70098aae-abdf-4393-b6e1-320646599966","sourceId":"401ad9e6-fff4-4a3a-8dc0-2f1bc1c431b4","sourceIndex":5,"label":"WP 4","type":"Instruction","distance":4.85,"note":"","centre":{"lat":-34.10849993820566,"lng":18.400986657714572},"lineA":null,"lineB":null},{"routePointId":"1f0ab46f-634f-4290-a25a-5a2305fb2f3a","sourceId":"4bd1a01c-ac25-4865-9b39-452b2f1a210e","sourceIndex":6,"label":"STC 2","type":"STC","distance":12.846,"note":"","centre":{"lat":-34.077421,"lng":18.429436},"lineA":null,"lineB":null},{"routePointId":"94e9f312-0818-4b4e-a723-80e1bdc1645a","sourceId":"33c1c580-1870-4468-bd95-b622153b7cb5","sourceIndex":7,"label":"WP 5","type":"Instruction","distance":16.14,"note":"","centre":{"lat":-34.05115748779952,"lng":18.424385033109754},"lineA":null,"lineB":null},{"routePointId":"b6828753-9b3e-4b0d-8c1f-50b18a3e8e80","sourceId":"2c01490c-9b5f-4ce4-b87c-4ce7d8dbb320","sourceIndex":8,"label":"STC 3","type":"STC","distance":16.592,"note":"","centre":{"lat":-34.047681,"lng":18.42507},"lineA":null,"lineB":null},{"routePointId":"ee06a16a-e6d6-4859-9dff-aa03e5b340e4","sourceId":"8736a369-7a0b-40e8-b766-ab66ed00a95e","sourceIndex":9,"label":"WP 6","type":"Instruction","distance":20.49,"note":"","centre":{"lat":-34.021542565440754,"lng":18.447529804752257},"lineA":null,"lineB":null},{"routePointId":"3321a02c-8492-4495-9ba5-2b49b4e784e5","sourceId":"5e2ec2f6-41e7-4c44-89ca-18f6a96a53d2","sourceIndex":10,"label":"STC 4","type":"STC","distance":21.275,"note":"","centre":{"lat":-34.021582,"lng":18.45606},"lineA":null,"lineB":null},{"routePointId":"49bfbf77-5706-4ff3-ab9b-e06646071337","sourceId":"d2eb5907-6598-49d7-bf49-b508fe234feb","sourceIndex":11,"label":"WP 7","type":"Instruction","distance":21.96,"note":"","centre":{"lat":-34.022053362698756,"lng":18.461630298286245},"lineA":null,"lineB":null},{"routePointId":"e5f56143-0935-4cf3-b0f5-f675b8d78855","sourceId":"734a6c91-3e03-4c1a-9a2e-a8136e556094","sourceIndex":12,"label":"WP 8","type":"Instruction","distance":22.18,"note":"","centre":{"lat":-34.02235346684773,"lng":18.460924626671662},"lineA":null,"lineB":null},{"routePointId":"2e0fd214-1005-410f-8141-24ca073b5f4c","sourceId":"9e0435e8-14c3-4aec-9170-bab54a975715","sourceIndex":13,"label":"WP 9","type":"Instruction","distance":22.5,"note":"","centre":{"lat":-34.02011032294815,"lng":18.460260945892088},"lineA":null,"lineB":null},{"routePointId":"9008d994-2d86-4091-b861-861239899c72","sourceId":"42ea9df0-b856-4cb0-9285-c635982e3a6d","sourceIndex":14,"label":"WP 10","type":"Instruction","distance":22.96,"note":"","centre":{"lat":-34.02179093098834,"lng":18.456220103870777},"lineA":null,"lineB":null},{"routePointId":"01f2a761-06ed-492a-af4e-28026e417d50","sourceId":"595d01dd-d05d-40b2-b575-7e620be25a9e","sourceIndex":15,"label":"WP 11","type":"Instruction","distance":24.11,"note":"","centre":{"lat":-34.02933088170343,"lng":18.45038418000478},"lineA":null,"lineB":null},{"routePointId":"b80e567e-37ba-4fb0-ab52-bcfab73684a1","sourceId":"8c14d6e1-4aee-453a-852f-319eb69a22b2","sourceIndex":16,"label":"WP 12","type":"Instruction","distance":24.82,"note":"","centre":{"lat":-34.034007538736006,"lng":18.44675654493652},"lineA":null,"lineB":null},{"routePointId":"03748a95-8712-4d63-9c19-849a3311ad0e","sourceId":"cb1853fb-61ed-4f2a-b856-b98542108e41","sourceIndex":17,"label":"WP 13","type":"Instruction","distance":30.02,"note":"","centre":{"lat":-34.07901053702576,"lng":18.446885226164035},"lineA":null,"lineB":null},{"routePointId":"efd995dc-c70b-4f7b-94f9-32176bb9c173","sourceId":"360dd19f-5292-4f0e-a09c-bef01332a6b5","sourceIndex":18,"label":"WP 14","type":"Instruction","distance":31.46,"note":"","centre":{"lat":-34.08126755574639,"lng":18.4335874751298},"lineA":null,"lineB":null},{"routePointId":"03a51818-5978-4e10-af25-92efabe3ee76","sourceId":"ebe04122-5748-497f-8d8e-b8b9d33ab8b9","sourceIndex":19,"label":"WP 15","type":"Instruction","distance":42.04,"note":"","centre":{"lat":-34.120481276608864,"lng":18.39200904593255},"lineA":null,"lineB":null},{"routePointId":"842fafeb-a0c4-4032-aa0c-a96ff8cc650a","sourceId":"2ea5d9a1-fb9e-4850-aa05-b176ff5ef794","sourceIndex":20,"label":"WP 16","type":"Instruction","distance":42.26,"note":"","centre":{"lat":-34.119806267344615,"lng":18.390431346657287},"lineA":null,"lineB":null},{"routePointId":"69cd6049-02d4-4f0f-abd1-336a24662f75","sourceId":"93c0a703-f2a9-4ce2-80ed-fb673e3327ef","sourceIndex":21,"label":"WP 17","type":"Instruction","distance":42.88,"note":"","centre":{"lat":-34.115862684481314,"lng":18.385719714127838},"lineA":null,"lineB":null}]},"waypoints":[{"id":"d0a29353-8a4f-4e8f-a593-e09f61cc245c","routePointId":"3291cc84-c5d7-4f3f-9c68-25d052968435","lat":-34.118353159715966,"lng":18.38278375942824,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":0,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"a81e8de7-0dd4-452b-b62d-4e6c87308198","routePointId":"20f26a78-164a-4433-9396-540d8ee80823","lat":-34.1149934886779,"lng":18.384028444675952,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":0.577,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"58c5ddd4-7107-4d30-95d8-d1ed4037f332","routePointId":"64da0e3d-705d-4084-82c5-5c654a011820","lat":-34.09953417031106,"lng":18.38316404086746,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":2.798,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"e0122415-0765-47cc-99d9-b508fef7f13e","routePointId":"ec24a77b-0f9b-4cf2-a1c1-1d25f1fd4561","lat":-34.106768,"lng":18.393871,"type":"STC","breadcrumb":false,"note":"","cumulativeDistance":4.084,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"401ad9e6-fff4-4a3a-8dc0-2f1bc1c431b4","routePointId":"70098aae-abdf-4393-b6e1-320646599966","lat":-34.10849993820566,"lng":18.400986657714572,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":4.852,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"4bd1a01c-ac25-4865-9b39-452b2f1a210e","routePointId":"1f0ab46f-634f-4290-a25a-5a2305fb2f3a","lat":-34.077421,"lng":18.429436,"type":"STC","breadcrumb":false,"note":"","cumulativeDistance":12.846,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"33c1c580-1870-4468-bd95-b622153b7cb5","routePointId":"94e9f312-0818-4b4e-a723-80e1bdc1645a","lat":-34.05115748779952,"lng":18.424385033109754,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":16.144,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"2c01490c-9b5f-4ce4-b87c-4ce7d8dbb320","routePointId":"b6828753-9b3e-4b0d-8c1f-50b18a3e8e80","lat":-34.047681,"lng":18.42507,"type":"STC","breadcrumb":false,"note":"","cumulativeDistance":16.592,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"8736a369-7a0b-40e8-b766-ab66ed00a95e","routePointId":"ee06a16a-e6d6-4859-9dff-aa03e5b340e4","lat":-34.021542565440754,"lng":18.447529804752257,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":20.485,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"5e2ec2f6-41e7-4c44-89ca-18f6a96a53d2","routePointId":"3321a02c-8492-4495-9ba5-2b49b4e784e5","lat":-34.021582,"lng":18.45606,"type":"STC","breadcrumb":false,"note":"","cumulativeDistance":21.275,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"d2eb5907-6598-49d7-bf49-b508fe234feb","routePointId":"49bfbf77-5706-4ff3-ab9b-e06646071337","lat":-34.022053362698756,"lng":18.461630298286245,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":21.961,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"734a6c91-3e03-4c1a-9a2e-a8136e556094","routePointId":"e5f56143-0935-4cf3-b0f5-f675b8d78855","lat":-34.02235346684773,"lng":18.460924626671662,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":22.176,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"9e0435e8-14c3-4aec-9170-bab54a975715","routePointId":"2e0fd214-1005-410f-8141-24ca073b5f4c","lat":-34.02011032294815,"lng":18.460260945892088,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":22.502,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"42ea9df0-b856-4cb0-9285-c635982e3a6d","routePointId":"9008d994-2d86-4091-b861-861239899c72","lat":-34.02179093098834,"lng":18.456220103870777,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":22.962,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"595d01dd-d05d-40b2-b575-7e620be25a9e","routePointId":"01f2a761-06ed-492a-af4e-28026e417d50","lat":-34.02933088170343,"lng":18.45038418000478,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":24.114,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"8c14d6e1-4aee-453a-852f-319eb69a22b2","routePointId":"b80e567e-37ba-4fb0-ab52-bcfab73684a1","lat":-34.034007538736006,"lng":18.44675654493652,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":24.824,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"cb1853fb-61ed-4f2a-b856-b98542108e41","routePointId":"03748a95-8712-4d63-9c19-849a3311ad0e","lat":-34.07901053702576,"lng":18.446885226164035,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":30.016,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"360dd19f-5292-4f0e-a09c-bef01332a6b5","routePointId":"efd995dc-c70b-4f7b-94f9-32176bb9c173","lat":-34.08126755574639,"lng":18.4335874751298,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":31.464,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"ebe04122-5748-497f-8d8e-b8b9d33ab8b9","routePointId":"03a51818-5978-4e10-af25-92efabe3ee76","lat":-34.120481276608864,"lng":18.39200904593255,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":42.04,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"2ea5d9a1-fb9e-4850-aa05-b176ff5ef794","routePointId":"842fafeb-a0c4-4032-aa0c-a96ff8cc650a","lat":-34.119806267344615,"lng":18.390431346657287,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":42.259,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null},{"id":"93c0a703-f2a9-4ce2-80ed-fb673e3327ef","routePointId":"69cd6049-02d4-4f0f-abd1-336a24662f75","lat":-34.115862684481314,"lng":18.385719714127838,"type":"Instruction","breadcrumb":false,"note":"","cumulativeDistance":42.882,"tripStartLat":null,"tripStartLng":null,"tripEndLat":null,"tripEndLng":null}],"fieldImport":{"rally":null,"waypoints":[],"tripMarks":[]}};
+  const map = L.map('map', { zoomControl:false }).setView([-34.0067,18.4629], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const routeLayer = L.layerGroup().addTo(map);
+  const controlLayer = L.layerGroup().addTo(map);
+  const entrantLayer = L.layerGroup().addTo(map);
+  const historyLayer = L.layerGroup().addTo(map);
+
+  const mapStatus = document.getElementById('mapStatus');
+  const entrantBtn = document.getElementById('entrantBtn');
+  const fixedEntrantCard = document.getElementById('fixedEntrantCard');
+  const fixedCardTitle = document.getElementById('fixedCardTitle');
+  const fixedCardDetail = document.getElementById('fixedCardDetail');
+  const fixedCardTrack = document.getElementById('fixedCardTrack');
+
+  let routeGeometry = [];
+  let routeBounds = null;
+  let controls = [];
+  let selectedEntrantId = null;
+  let selectedControlIndex = null;
+  let viewMode = 'all';
+  let defaultTrack = 'none';
+  let controlZoom = 16;
+  const controlGateM = 300;
+  const entrantMarkers = new Map();
+  let openCardEntrantId = null;
+  let markerLabelMode = 'number';
+  let liveTrackingTimer = null;
+  let lastLiveTrackingRead = null;
+  const LIVE_TRACKING_POLL_MS = 15000;
+  let operatingMode = 'live';
+  let replayHistory = [];
+  let replayByEntrant = new Map();
+  let replayStartMs = null;
+  let replayClockMs = null;
+  let replayLastFrameMs = 0;
+  let replayFrameId = null;
+  let replayRunning = false;
+  let replayLoadedRange = null;
+  let replayAnchorRealMs = 0;
+  let replayAnchorClockMs = 0;
+  let replayLastStatusSecond = -1;
+
+  let ENTRANTS = [];
+
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  }
+
+  function haversine(a,b) {
+    const R=6371000, toRad=d=>d*Math.PI/180;
+    const dLat=toRad(b[0]-a[0]), dLon=toRad(b[1]-a[1]);
+    const lat1=toRad(a[0]), lat2=toRad(b[0]);
+    const x=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(x));
+  }
+
+  function cumulativePath(points) {
+    const cum=[0];
+    for(let i=1;i<points.length;i++) cum.push(cum[i-1]+haversine(points[i-1],points[i]));
+    return cum;
+  }
+
+  function pointPosition(e) {
+    return e.latest ? [e.latest.lat,e.latest.lng] : null;
+  }
+
+  function stoppedForFiveMinutes_(points) {
+    if(!Array.isArray(points) || points.length<2) return false;
+    const latest=points[points.length-1];
+    const latestMs=Number(latest?.gpsMs);
+    if(!Number.isFinite(latestMs)) return false;
+    const cutoff=latestMs-5*60*1000;
+    let start=points.findIndex(p=>Number(p?.gpsMs)>=cutoff);
+    if(start<0) return false;
+    if(start>0) start--; // include the last fix before the 5-minute boundary
+    const window=points.slice(start).filter(p=>Number.isFinite(Number(p?.gpsMs)));
+    if(window.length<2 || latestMs-Number(window[0].gpsMs)<5*60*1000) return false;
+    for(let i=0;i<window.length;i++){
+      for(let j=i+1;j<window.length;j++){
+        if(haversine([window[i].lat,window[i].lng],[window[j].lat,window[j].lng])>40) return false;
+      }
+    }
+    return true;
+  }
+
+  function statusFromAge(e) {
+    if(!e.latest) return 'waiting';
+    const stamp = new Date(e.latest.gpsTime || e.latest.gpsIso || 0).getTime();
+    if(!Number.isFinite(stamp) || stamp<=0) return 'waiting';
+    const age = Math.max(0,(Date.now()-stamp)/1000);
+    if(age>=300) return 'stale';
+    if(age>=120) return 'delayed';
+    if(stoppedForFiveMinutes_(e.historyPoints)) return 'stopped';
+    return 'active';
+  }
+
+  function pointAt(progress) {
+    if(!routeGeometry.length) return [-34.0067,18.4629];
+    const p=Math.max(0,Math.min(1,progress));
+    const cum=cumulativePath(routeGeometry);
+    const total=cum[cum.length-1]||1;
+    const target=p*total;
+    let i=1;
+    while(i<cum.length && cum[i]<target) i++;
+    if(i>=cum.length) return routeGeometry[routeGeometry.length-1];
+    const span=Math.max(1e-9,cum[i]-cum[i-1]);
+    const t=(target-cum[i-1])/span;
+    return [
+      routeGeometry[i-1][0]+(routeGeometry[i][0]-routeGeometry[i-1][0])*t,
+      routeGeometry[i-1][1]+(routeGeometry[i][1]-routeGeometry[i-1][1])*t
+    ];
+  }
+
+  function routeProgressForPoint(lat,lng) {
+    if(!routeGeometry.length) return 0;
+    const cum=cumulativePath(routeGeometry);
+    const total=cum[cum.length-1]||1;
+    let best=0,bestD=Infinity;
+    for(let i=0;i<routeGeometry.length;i++){
+      const d=haversine(routeGeometry[i],[lat,lng]);
+      if(d<bestD){bestD=d;best=i;}
+    }
+    return cum[best]/total;
+  }
+
+  function entrantIcon(e, faded=false) {
+    const classes=['entrant-dot'];
+    if(faded) classes.push('faded');
+    if(e.status==='stopped') classes.push('stopped');
+    if(e.status==='delayed') classes.push('delayed');
+    if(e.status==='stale') classes.push('stale');
+    if(e.status==='past' || e.status==='finished') classes.push('past');
+    if(e.id===selectedEntrantId) classes.push('selected');
+    if(e.id===openCardEntrantId) classes.push('card-selected');
+    const markerLabel = markerLabelMode==='none'
+      ? ''
+      : markerLabelMode==='number-name'
+        ? `${e.id} ${escapeHtml(e.name)}`
+        : `${e.id}`;
+    const labelHtml = markerLabel ? `<span class="entrant-number">${markerLabel}</span>` : '';
+    const iconWidth = markerLabelMode==='number-name' ? 150 : (markerLabelMode==='number' ? 54 : 30);
+    return L.divIcon({
+      className:'',
+      html:`<div class="entrant-hit" style="width:${iconWidth}px"><div class="entrant-dot-wrap"><div class="${classes.join(' ')}"></div></div>${labelHtml}</div>`,
+      iconSize:[iconWidth,30],
+      iconAnchor:[15,15],
+      popupAnchor:[0,-12]
+    });
+  }
+
+  function historyIcon() {
+    return L.divIcon({className:'',html:'<div class="history-dot"></div>',iconSize:[1,1],iconAnchor:[0,0]});
+  }
+
+  function controlNumber(label) {
+    const match=String(label||'').match(/\d+/);
+    return match ? match[0] : '';
+  }
+
+  function controlIcon(label, zoom=map.getZoom()) {
+    const number=escapeHtml(controlNumber(label));
+    if (zoom >= 15) {
+      return L.divIcon({
+        className:'',
+        html:`<div class="control-marker detail"><div class="control-pin" aria-hidden="true"><svg viewBox="0 0 34 43" xmlns="http://www.w3.org/2000/svg"><path d="M17 42C17 42 3 25.8 3 17C3 9.268 9.268 3 17 3C24.732 3 31 9.268 31 17C31 25.8 17 42 17 42Z" fill="#ef2f2f" stroke="#ffffff" stroke-width="2.8" stroke-linejoin="round"/><circle cx="17" cy="16.3" r="5.7" fill="#ffffff"/></svg></div><div class="control-label">${escapeHtml(label)}</div></div>`,
+        iconSize:[136,43],iconAnchor:[17,42],popupAnchor:[0,-34]
+      });
+    }
+    if (zoom >= 13) {
+      return L.divIcon({
+        className:'',
+        html:`<div class="control-marker medium"><div class="control-pin" aria-hidden="true"><svg viewBox="0 0 28 34" xmlns="http://www.w3.org/2000/svg"><path d="M14 33C14 33 2.5 20.8 2.5 13.8C2.5 7.4 7.65 2.3 14 2.3S25.5 7.4 25.5 13.8C25.5 20.8 14 33 14 33Z" fill="#ef2f2f" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/><circle cx="14" cy="13.2" r="6.2" fill="#ffffff"/><text class="control-pin-number" x="14" y="13.5">${number}</text></svg></div></div>`,
+        iconSize:[28,34],iconAnchor:[14,33],popupAnchor:[0,-27]
+      });
+    }
+    return L.divIcon({
+      className:'',
+      html:`<div class="control-marker compact"><div class="control-pin" aria-hidden="true"><svg viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><path d="M10 25C10 25 1.8 15.8 1.8 10.3C1.8 5.5 5.45 1.7 10 1.7S18.2 5.5 18.2 10.3C18.2 15.8 10 25 10 25Z" fill="#ef2f2f" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/><circle cx="10" cy="9.8" r="4.7" fill="#ffffff"/><text class="control-pin-number" x="10" y="10.1">${number}</text></svg></div></div>`,
+      iconSize:[20,26],iconAnchor:[10,25],popupAnchor:[0,-20]
+    });
+  }
+
+  const controlMarkerEntries=[];
+  function refreshControlMarkerIcons() {
+    const zoom=map.getZoom();
+    controlMarkerEntries.forEach(entry=>entry.marker.setIcon(controlIcon(entry.label,zoom)));
+  }
+  map.on('zoomend', refreshControlMarkerIcons);
+
+  function fixedCardStatusText(e) {
+    if(e.status==='waiting') return 'Waiting to start';
+    if(e.status==='active') return 'Active';
+    if(e.status==='stopped') return 'Stopped';
+    if(e.status==='delayed') return 'Delayed';
+    if(e.status==='stale') return 'Stale';
+    if(e.status==='finished') return 'Finished';
+    return 'Past';
+  }
+
+  function updateFixedCard() {
+    if (!openCardEntrantId) {
+      fixedEntrantCard.classList.remove('open');
+      return;
+    }
+
+    const e = ENTRANTS.find(item => item.id===openCardEntrantId);
+    if (!e) {
+      closeFixedCard();
+      return;
+    }
+
+    fixedCardTitle.textContent = `Entrant ${e.id} — ${e.name}`;
+    const pointState = selectedControlIndex===null
+      ? ''
+      : (e.progress > controls[selectedControlIndex].progress + gateProgress()
+          ? 'Past selected control'
+          : 'Before selected control');
+
+    fixedCardDetail.innerHTML = [
+      `Status: ${escapeHtml(fixedCardStatusText(e))}`,
+      e.latest && Number.isFinite(e.latest.speedKph) ? `Speed: ${Math.round(e.latest.speedKph)} km/h` : '',
+      e.latest && Number.isFinite(e.latest.accuracy) ? `Accuracy: ${e.latest.accuracy.toFixed(1)} m` : '',
+      pointState ? escapeHtml(pointState) : ''
+    ].filter(Boolean).join('<br>');
+
+    if(fixedCardTrack) fixedCardTrack.querySelectorAll('[data-fixed-track]').forEach(btn => {
+      const raw = btn.dataset.fixedTrack;
+      const value = raw==='all' ? 'all' : raw==='none' ? 'none' : Number(raw);
+      btn.classList.toggle('active', e.popupTrack===value);
+    });
+
+    fixedEntrantCard.classList.add('open');
+  }
+
+  function openFixedCard(e) {
+    openCardEntrantId = e.id;
+    e.popupTrack = defaultTrack;
+    updateFixedCard();
+    drawEntrants();
+  }
+
+  function closeFixedCard() {
+    const e = ENTRANTS.find(item => item.id===openCardEntrantId);
+    if (e) e.popupTrack = defaultTrack;
+    openCardEntrantId = null;
+    fixedEntrantCard.classList.remove('open');
+    drawEntrants();
+  }
+
+  function gateProgress() {
+    if(!routeGeometry.length) return 0;
+    const cum=cumulativePath(routeGeometry);
+    return controlGateM/(cum[cum.length-1]||1);
+  }
+
+  function entrantIconKey(e, faded) {
+    return [
+      e.id,
+      e.status,
+      faded ? 'faded' : 'normal',
+      e.id===selectedEntrantId ? 'selected' : 'plain',
+      e.id===openCardEntrantId ? 'card-selected' : 'card-plain',
+      markerLabelMode
+    ].join('|');
+  }
+
+  function drawEntrants() {
+    historyLayer.clearLayers();
+
+    ENTRANTS.forEach(e => {
+      const position = pointPosition(e);
+      let marker = entrantMarkers.get(e.id);
+
+      if(!position) {
+        if(marker) {
+          entrantLayer.removeLayer(marker);
+          entrantMarkers.delete(e.id);
+        }
+        return;
+      }
+
+      const faded = viewMode==='entrant' && e.id!==selectedEntrantId;
+
+      const iconKey=entrantIconKey(e,faded);
+      const zIndex=e.id===selectedEntrantId ? 1400 : 1200;
+
+      if (!marker) {
+        marker = L.marker(position, {
+          icon: entrantIcon(e, faded),
+          keyboard:false,
+          zIndexOffset:zIndex
+        }).addTo(entrantLayer);
+        marker.__tdIconKey=iconKey;
+        marker.__tdLat=position[0];
+        marker.__tdLng=position[1];
+        marker.__tdZIndex=zIndex;
+        marker.on('click', () => openFixedCard(e));
+        entrantMarkers.set(e.id, marker);
+      } else {
+        if(marker.__tdLat!==position[0] || marker.__tdLng!==position[1]) {
+          marker.setLatLng(position);
+          marker.__tdLat=position[0];
+          marker.__tdLng=position[1];
+        }
+        if(marker.__tdIconKey!==iconKey) {
+          marker.setIcon(entrantIcon(e, faded));
+          marker.__tdIconKey=iconKey;
+        }
+        if(marker.__tdZIndex!==zIndex) {
+          marker.setZIndexOffset(zIndex);
+          marker.__tdZIndex=zIndex;
+        }
+      }
+
+      e.marker = marker;
+
+      // Breadcrumbs belong to one selected entrant only; All Entrants remains dots only.
+      let trailSetting='none';
+      if(openCardEntrantId){
+        if(e.id===openCardEntrantId) trailSetting=e.popupTrack ?? defaultTrack;
+      }else if(viewMode==='entrant' && selectedEntrantId && e.id===selectedEntrantId){
+        trailSetting=defaultTrack;
+      }
+
+      if (trailSetting !== 'none' && Array.isArray(e.historyPoints) && e.historyPoints.length > 1) {
+        let trailPoints=e.historyPoints;
+        if(trailSetting!=='all'){
+          const minutes=Number(trailSetting);
+          const latestMs=Number(trailPoints[trailPoints.length-1]?.gpsMs);
+          if(Number.isFinite(latestMs) && Number.isFinite(minutes)){
+            const cutoff=latestMs-minutes*60*1000;
+            let start=trailPoints.findIndex(p=>Number(p?.gpsMs)>=cutoff);
+            if(start<0) start=trailPoints.length-1;
+            if(start>0) start--; // connect cleanly across the time boundary
+            trailPoints=trailPoints.slice(start);
+          }
+        }
+        const hist=trailPoints.map(p=>p.latLng || [p.lat,p.lng]).filter(p=>Array.isArray(p)&&p.length>=2);
+        if(hist.length>1){
+          L.polyline(hist, {
+            color:'#111827',weight:3,opacity:.70,dashArray:'2 5',interactive:false
+          }).addTo(historyLayer);
+          hist.forEach(p => L.marker(p, {
+            icon:historyIcon(),keyboard:false,interactive:false
+          }).addTo(historyLayer));
+        }
+      }
+    });
+
+    if (openCardEntrantId) updateFixedCard();
+  }
+
+  function centreView() {
+    if(viewMode==='control' && selectedControlIndex!==null) {
+      map.setView(controls[selectedControlIndex].latlng,controlZoom,{animate:true});
+      return;
+    }
+    if(viewMode==='entrant' && selectedEntrantId) {
+      const e=ENTRANTS.find(x=>x.id===selectedEntrantId);
+      let hist=[];
+      if(defaultTrack!=='none' && Array.isArray(e?.historyPoints) && e.historyPoints.length){
+        let trailPoints=e.historyPoints;
+        if(defaultTrack!=='all'){
+          const minutes=Number(defaultTrack);
+          const latestMs=Number(trailPoints[trailPoints.length-1]?.gpsMs);
+          if(Number.isFinite(latestMs) && Number.isFinite(minutes)){
+            const cutoff=latestMs-minutes*60*1000;
+            let start=trailPoints.findIndex(p=>Number(p?.gpsMs)>=cutoff);
+            if(start<0) start=trailPoints.length-1;
+            if(start>0) start--;
+            trailPoints=trailPoints.slice(start);
+          }
+        }
+        hist=trailPoints.map(p=>p.latLng || [p.lat,p.lng]).filter(p=>Array.isArray(p)&&p.length>=2);
+      }
+      const pos=pointPosition(e);
+      const pts=hist.length ? hist : (pos ? [pos] : []);
+      if(pts.length) map.fitBounds(L.latLngBounds(pts),{padding:[45,45],maxZoom:17});
+      return;
+    }
+    const allBounds=routeBounds ? L.latLngBounds(routeBounds) : L.latLngBounds([]);
+    ENTRANTS.forEach(e=>{const p=pointPosition(e);if(p)allBounds.extend(p);});
+    if(allBounds.isValid()) map.fitBounds(allBounds,{padding:[30,30]});
+  }
+
+  function selectAll(keepEntrantsCardOpen=false) {
+    openCardEntrantId=null;
+    fixedEntrantCard.classList.remove('open');
+    viewMode='all';selectedEntrantId=null;selectedControlIndex=null;
+    entrantBtn.textContent='Entrants';
+    if(!keepEntrantsCardOpen) closeCards();
+    drawEntrants();
+    centreView();
+  }
+
+  function selectEntrant(e) {
+    openCardEntrantId=null;
+    fixedEntrantCard.classList.remove('open');
+    viewMode='entrant';selectedEntrantId=e.id;selectedControlIndex=null;
+    e.popupTrack=defaultTrack;
+    entrantBtn.textContent=`${e.id} — ${e.name}`;
+    drawEntrants();
+    centreView();
+  }
+
+  function selectControl(index) {
+    openCardEntrantId=null;
+    fixedEntrantCard.classList.remove('open');
+    viewMode='control';selectedControlIndex=index;selectedEntrantId=null;
+    entrantBtn.textContent=controls[index].label;
+    closeCards();classifyControlStatuses();drawEntrants();centreView();
+  }
+
+  function classifyControlStatuses() {
+    if(selectedControlIndex===null) return;
+    const threshold=controls[selectedControlIndex].progress+gateProgress();
+    ENTRANTS.forEach(e=>{
+      const operational=statusFromAge(e);
+      if(operational==='waiting'||operational==='delayed'||operational==='stale'||operational==='finished') {
+        e.status=operational;
+        return;
+      }
+      e.status=e.progress>threshold?'past':'active';
+    });
+  }
+
+  function restoreNormalStatuses() {
+    ENTRANTS.forEach(e=>{e.status=statusFromAge(e);});
+  }
+
+  function buildMenus() {
+    const entrantList=document.getElementById('entrantList');
+    entrantList.innerHTML='';
+    ENTRANTS.forEach(e=>{
+      const btn=document.createElement('button');
+      btn.className='menu-btn';
+      btn.textContent=`${e.id} — ${e.name}`;
+      btn.addEventListener('click',()=>{restoreNormalStatuses();selectEntrant(e);});
+      entrantList.appendChild(btn);
+    });
+
+    const controlList=document.getElementById('controlList');
+    controlList.innerHTML='';
+    controls.forEach((c,i)=>{
+      const btn=document.createElement('button');
+      btn.className='menu-btn';
+      btn.textContent=`${c.label} — ${c.note||'Control'}`;
+      btn.addEventListener('click',()=>selectControl(i));
+      controlList.appendChild(btn);
+    });
+  }
+
+  function normaliseRallyEntrants(raw) {
+    const list=Array.isArray(raw)?raw:[];
+    return list.map((item,index)=>{
+      const rallyNo=String(item?.rallyNo ?? item?.number ?? item?.no ?? item?.id ?? '').trim();
+      const first=String(item?.driverFirstName ?? item?.firstName ?? item?.driver?.first ?? item?.driver?.firstName ?? '').trim();
+      const surname=String(item?.driverSurname ?? item?.surname ?? item?.driver?.last ?? item?.driver?.surname ?? '').trim();
+      const name=String(item?.driverName ?? item?.name ?? `${first} ${surname}`).trim() || `Entrant ${index+1}`;
+      return {
+        id:rallyNo || String(index+1), name, startOffset:0, status:'waiting', progress:0,
+        history:[], historyPoints:[], marker:null, popupTrack:defaultTrack, latest:null, nextIndex:0,
+        routeIndex:0, started:false, finished:false, lastReportReplaySeconds:null
+      };
+    }).filter(e=>e.id || e.name);
+  }
+
+  function findMapPackage(value, depth=0) {
+    if(!value || depth>7) return null;
+    if(Array.isArray(value)){
+      for(const item of value){ const found=findMapPackage(item,depth+1); if(found) return found; }
+      return null;
+    }
+    if(typeof value!=='object') return null;
+    if(Array.isArray(value.waypoints) && value.waypoints.some(w=>Number.isFinite(Number(w?.lat))&&Number.isFinite(Number(w?.lng)))) return value;
+    for(const key of Object.keys(value)){
+      const found=findMapPackage(value[key],depth+1); if(found) return found;
+    }
+    return null;
+  }
+
+  let activeRallyContext=null;
+
+  function mappingRouteStorageKey(rallyId,day,route){
+    const rid=encodeURIComponent(String(rallyId||'').trim().toLowerCase().replace(/\s+/g,'-'));
+    return `tsd_route_capture_route_v137:${rid}:day-${Number(day)||1}:route-${Number(route)||1}`;
+  }
+
+  function readRallyAppContext() {
+    try{
+      const td=JSON.parse(localStorage.getItem('TD_RALLIES')||'{}');
+      const rid=td?.global?.activeRallyId || td?.global?.lastRallyId || Object.keys(td?.rallies||{})[0];
+      const rally=rid && td?.rallies ? td.rallies[rid] : null;
+      if(!rally) return null;
+
+      const storedDay=Number(localStorage.getItem('TD_ACTIVE_DAY'));
+      const day=Number.isFinite(storedDay) && storedDay>0
+        ? storedDay
+        : Number(rally?.ui?.activeDay ?? rally?.admin?.ui?.activeDay ?? 1) || 1;
+      const route=Number(rally?.ui?.activeRoute ?? rally?.admin?.ui?.activeRoute ?? rally?.admin?.ui?.route ?? 1) || 1;
+      const title=String(rally?.meta?.title ?? rally?.admin?.rallyTitle ?? rally?.title ?? 'Active Rally').trim();
+
+      // v0.32 — Replay must use the saved rally day date, not today's date.
+      // Admin persists each day's ISO date under admin.days[day].date; retain
+      // schedule.dayDates as a compatibility fallback for older project shapes.
+      const dayRecord=(rally?.admin?.days && typeof rally.admin.days==='object') ? rally.admin.days[String(day)] : null;
+      const scheduleDayDates=Array.isArray(rally?.schedule?.dayDates)
+        ? rally.schedule.dayDates
+        : (Array.isArray(rally?.admin?.schedule?.dayDates) ? rally.admin.schedule.dayDates : []);
+      const trackingDate=String((dayRecord && dayRecord.date) || scheduleDayDates[day-1] || '').trim();
+
+      const entries=Array.isArray(rally?.admin?.entries)
+        ? rally.admin.entries
+        : (Array.isArray(rally?.entries) ? rally.entries : []);
+
+      const mapKey=mappingRouteStorageKey(rid,day,route);
+      let mapPackage=null;
+      try{
+        const raw=localStorage.getItem(mapKey);
+        mapPackage=raw ? JSON.parse(raw) : null;
+      }catch(_e){ mapPackage=null; }
+
+      return {rid,rally,title,day,route,trackingDate,entries,mapPackage,mapKey};
+    }catch(_e){ return null; }
+  }
+
+  function applyEventContextText(ctx){
+    const text=ctx ? `${ctx.title} · Day ${ctx.day} · Route ${ctx.route}` : 'Awaiting Rally App context';
+    const uploadText=ctx ? `${ctx.title} — Day ${ctx.day} — Route ${ctx.route}` : 'Awaiting Rally App context';
+    ['eventContextSub','settingsEventContext'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=text;});
+    const project=document.getElementById('trackingProjectTitle'); if(project) project.textContent=uploadText;
+  }
+
+  async function buildRoute() {
+    controlMarkerEntries.length=0;
+    const rallyContext=readRallyAppContext();
+    activeRallyContext=rallyContext;
+    applyEventContextText(rallyContext);
+    ENTRANTS=normaliseRallyEntrants(rallyContext?.entries);
+    const activeRoute=rallyContext?.mapPackage;
+    if(!activeRoute){
+      buildMenus();
+      mapStatus.innerHTML='<strong>TRACKING:</strong> No mapped route found for the active rally, day and route';
+      return;
+    }
+    const waypoints=(activeRoute.waypoints||[])
+      .map(w=>({...w,lat:Number(w.lat),lng:Number(w.lng)}))
+      .filter(w=>Number.isFinite(w.lat)&&Number.isFinite(w.lng));
+    const waypointLatLngs=waypoints.map(w=>[w.lat,w.lng]);
+
+    controls=waypoints
+      .filter(w=>String(w.type||'').trim().toLowerCase()==='stc')
+      .map((w,i)=>({label:`STC ${i+1}`,note:w.note||'',latlng:[w.lat,w.lng],progress:0}));
+
+    let line;
+    try {
+      const coords=waypoints.map(w=>`${w.lng.toFixed(6)},${w.lat.toFixed(6)}`).join(';');
+      const url=`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`;
+      const response=await fetch(url);
+      if(!response.ok) throw new Error(`OSRM HTTP ${response.status}`);
+      const data=await response.json();
+      const coordsOut=data.routes?.[0]?.geometry?.coordinates;
+      if(!Array.isArray(coordsOut)||coordsOut.length<2) throw new Error('No route geometry');
+      routeGeometry=coordsOut.map(c=>[c[1],c[0]]);
+      line=L.polyline(routeGeometry,{color:'#2563eb',weight:3,opacity:.82,lineCap:'round',lineJoin:'round'}).addTo(routeLayer);
+      mapStatus.innerHTML=`<strong>TRACKING:</strong> Active Rally App route loaded · ${ENTRANTS.length} entrant${ENTRANTS.length===1?'':'s'}`;
+    } catch(err) {
+      routeGeometry=waypointLatLngs;
+      line=L.polyline(routeGeometry,{color:'#d97706',weight:3,opacity:.82,dashArray:'6 5'}).addTo(routeLayer);
+      mapStatus.innerHTML=`<strong>TRACKING:</strong> Saved mapped route loaded · ${ENTRANTS.length} entrant${ENTRANTS.length===1?'':'s'}`;
+    }
+
+    routeBounds=line.getBounds();
+    const cum=cumulativePath(routeGeometry);
+    const total=cum[cum.length-1]||1;
+    controls.forEach(c=>{
+      let best=0,bestD=Infinity;
+      routeGeometry.forEach((p,i)=>{
+        const d=haversine(p,c.latlng);
+        if(d<bestD){bestD=d;best=i;}
+      });
+      c.progress=cum[best]/total;
+      const controlMarker=L.marker(c.latlng,{icon:controlIcon(c.label),keyboard:false})
+        .bindTooltip(`${escapeHtml(c.label)}${c.note?': '+escapeHtml(c.note):''}`,{direction:'top',offset:[0,-7]})
+        .addTo(controlLayer);
+      controlMarkerEntries.push({marker:controlMarker,label:c.label});
+    });
+
+    buildMenus();
+    centreView();
+  }
+
+  function normaliseTrackingPoint(raw) {
+    const lat=Number(raw?.latitude ?? raw?.lat);
+    const lng=Number(raw?.longitude ?? raw?.lng);
+    const gpsTime=String(raw?.gpsTime ?? raw?.gpsIso ?? raw?.timestamp ?? '');
+    const gpsMs=new Date(gpsTime).getTime();
+    if(!Number.isFinite(lat)||!Number.isFinite(lng)||!Number.isFinite(gpsMs)) return null;
+    return {
+      rallyNo:String(raw?.rallyNo ?? raw?.entrantNo ?? raw?.id ?? '').trim(),
+      lat,lng,
+      latLng:[lat,lng],
+      speedKph:Number(raw?.speedKph ?? raw?.speed),
+      accuracy:Number(raw?.accuracy),
+      gpsTime,
+      gpsMs,
+      sequence:Number(raw?.sequence ?? 0),
+      routeProgress:null
+    };
+  }
+
+  async function readLiveTrackingRows() {
+    if(operatingMode!=='live') return;
+    const ctx=activeRallyContext || readRallyAppContext();
+    if(!ctx || !rallyWebAppUrl()) {
+      mapStatus.innerHTML='<strong>TRACKING:</strong> Connect the Rally App to Google from Admin to read live positions';
+      return;
+    }
+
+    const data=await trackingRequest({
+      mode:'trackingRead',
+      key:TRACKING_KEY,
+      eventId:String(ctx.rid),
+      route:`Route ${ctx.route}`,
+      limit:50000
+    });
+
+    const points=(Array.isArray(data.points)?data.points:[])
+      .map(normaliseTrackingPoint)
+      .filter(Boolean)
+      .sort((a,b)=>{
+        const ta=new Date(a.gpsTime||0).getTime();
+        const tb=new Date(b.gpsTime||0).getTime();
+        return ta-tb || a.sequence-b.sequence;
+      });
+
+    const byEntrant=new Map();
+    points.forEach(p=>{
+      if(!p.rallyNo) return;
+      if(!byEntrant.has(p.rallyNo)) byEntrant.set(p.rallyNo,[]);
+      byEntrant.get(p.rallyNo).push(p);
+    });
+
+    ENTRANTS.forEach(e=>{
+      const list=byEntrant.get(String(e.id)) || [];
+      e.historyPoints=list.slice();
+      e.history=list.map(p=>[p.lat,p.lng]);
+      const latest=list[list.length-1] || null;
+      if(latest){
+        e.latest=latest;
+        e.progress=routeProgressForPoint(latest.lat,latest.lng);
+        e.started=true;
+        e.finished=false;
+      }else{
+        e.latest=null;
+        e.progress=0;
+        e.started=false;
+        e.finished=false;
+      }
+      e.status=statusFromAge(e);
+    });
+
+    if(viewMode==='control' && selectedControlIndex!==null) classifyControlStatuses();
+    drawEntrants();
+    lastLiveTrackingRead=new Date();
+
+    const reporting=ENTRANTS.filter(e=>e.latest).length;
+    mapStatus.innerHTML=`<strong>LIVE TRACKING:</strong> ${reporting} of ${ENTRANTS.length} reporting · updated ${lastLiveTrackingRead.toLocaleTimeString()}`;
+  }
+
+  async function refreshLiveTracking() {
+    if(operatingMode!=='live') return;
+    try {
+      await readLiveTrackingRows();
+    } catch(err) {
+      mapStatus.innerHTML=`<strong>TRACKING ERROR:</strong> ${escapeHtml(err.message)}`;
+    }
+  }
+
+  function startLiveTracking() {
+    operatingMode='live';
+    clearInterval(liveTrackingTimer);
+    refreshLiveTracking();
+    liveTrackingTimer=setInterval(refreshLiveTracking,LIVE_TRACKING_POLL_MS);
+  }
+
+
+  function replayFormatClock(ms){
+    if(!Number.isFinite(ms)) return '--:--:--';
+    return new Date(ms).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  }
+
+  function replayTimeValue(ms){
+    const d=new Date(ms);
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+  }
+
+  function replayMsFromTime(value){
+    if(!replayLoadedRange || !/^\d{2}:\d{2}:\d{2}$/.test(String(value||''))) return replayLoadedRange?.minMs ?? null;
+    const [h,m,sec]=value.split(':').map(Number);
+    const d=new Date(replayLoadedRange.minMs);
+    d.setHours(h,m,sec,0);
+    let ms=d.getTime();
+    if(ms<replayLoadedRange.minMs && replayLoadedRange.maxMs-ms>12*3600000) ms+=86400000;
+    return Math.max(replayLoadedRange.minMs,Math.min(replayLoadedRange.maxMs,ms));
+  }
+
+  function syncReplaySpeedControls(){
+    const select=document.getElementById('replaySpeedSelect');
+    const speed=String(select.value||'1');
+    document.querySelectorAll('[data-replay-speed]').forEach(btn=>btn.classList.toggle('active',btn.dataset.replaySpeed===speed));
+  }
+
+  function setReplaySpeed(value){
+    const select=document.getElementById('replaySpeedSelect');
+    if(replayRunning && replayLoadedRange){
+      const now=performance.now();
+      const oldSpeed=Number(select.value)||1;
+      replayClockMs=Math.min(replayLoadedRange.maxMs,replayAnchorClockMs+(now-replayAnchorRealMs)*oldSpeed);
+      replayAnchorClockMs=replayClockMs;
+      replayAnchorRealMs=now;
+    }
+    select.value=String(value);
+    syncReplaySpeedControls();
+    if(operatingMode==='replay' && replayLoadedRange) replayStatus(replayRunning?'EVENT REPLAY':'REPLAY PAUSED');
+  }
+
+  function setReplayIndicator(state){
+    const hud=document.getElementById('replayHud');
+    const el=document.getElementById('replayIndicator');
+    hud.classList.add('visible');
+    el.className=state==='running'?'running':'paused';
+    el.textContent=state==='running'?'REPLAY':'REPLAY PAUSED';
+    syncReplaySpeedControls();
+  }
+
+  function hideReplayIndicator(){
+    document.getElementById('replayHud').classList.remove('visible');
+    document.getElementById('replayIndicator').className='';
+  }
+
+  function replayDateKey(ms){
+    const d=new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function replayDateLabel(key){
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(key||''));
+    if(!m) return String(key||'');
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+
+  function populateReplayEntrants(){
+    const select=document.getElementById('replayEntrantSelect');
+    const old=select.value;
+    select.innerHTML='<option value="all">All entrants</option>';
+
+    const ids=[...replayByEntrant.keys()]
+      .filter(Boolean)
+      .sort((a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true}));
+
+    ids.forEach(id=>{
+      const known=ENTRANTS.find(e=>String(e.id)===String(id));
+      const option=document.createElement('option');
+      option.value=String(id);
+      option.textContent=known ? `${id} — ${known.name}` : `Entrant ${id}`;
+      select.appendChild(option);
+    });
+    if([...select.options].some(o=>o.value===old)) select.value=old;
+    else select.value='all';
+  }
+
+  function applyReplayDateSelection(preferredDate){
+    const dateSelect=document.getElementById('replayDateSelect');
+    const allHistory=Array.isArray(window.__td7ReplayAllHistory) ? window.__td7ReplayAllHistory : [];
+    const dates=[...new Set(allHistory.map(p=>replayDateKey(p.gpsMs)))].sort();
+
+    const old=preferredDate || dateSelect.value;
+    dateSelect.innerHTML='';
+    dates.forEach(key=>{
+      const option=document.createElement('option');
+      option.value=key;
+      option.textContent=replayDateLabel(key);
+      dateSelect.appendChild(option);
+    });
+
+    if(!dates.length){
+      replayHistory=[]; replayByEntrant=new Map(); replayLoadedRange=null;
+      populateReplayEntrants();
+      return;
+    }
+
+    // Prefer an existing selection; on first open use the most recent available date.
+    dateSelect.value=dates.includes(old) ? old : dates[dates.length-1];
+    const chosen=dateSelect.value;
+    replayHistory=allHistory.filter(p=>replayDateKey(p.gpsMs)===chosen);
+
+    replayByEntrant=new Map();
+    replayHistory.forEach(p=>{
+      if(!p.rallyNo) return;
+      if(!replayByEntrant.has(p.rallyNo)) replayByEntrant.set(p.rallyNo,[]);
+      replayByEntrant.get(p.rallyNo).push(p);
+    });
+
+    const minMs=replayHistory[0].gpsMs;
+    const maxMs=replayHistory[replayHistory.length-1].gpsMs;
+    replayLoadedRange={minMs,maxMs};
+
+    // Keep Start time while reopening/restarting the same date.
+    // Changing Replay date explicitly clears the optional Start time.
+    document.getElementById('replayRange').textContent=
+      `${replayDateLabel(chosen)} · ${replayFormatClock(minMs)} to ${replayFormatClock(maxMs)} · ${replayHistory.length} records`;
+
+    populateReplayEntrants();
+  }
+
+  async function loadReplayHistory(){
+    const ctx=activeRallyContext || readRallyAppContext();
+    if(!ctx || !rallyWebAppUrl()) throw new Error('Connect the Rally App to Google from Admin first.');
+    const data=await trackingRequest({
+      mode:'trackingRead',
+      key:TRACKING_KEY,
+      eventId:String(ctx.rid),
+      route:`Route ${ctx.route}`,
+      trackingDate:ctx.trackingDate,
+      limit:50000
+    });
+    const all=(Array.isArray(data.points)?data.points:[])
+      .map(normaliseTrackingPoint)
+      .filter(Boolean)
+      .sort((a,b)=>a.gpsMs-b.gpsMs||a.sequence-b.sequence);
+    if(!all.length) throw new Error('No recorded tracking history is available for this event.');
+    all.forEach(p=>{p.routeProgress=routeProgressForPoint(p.lat,p.lng);});
+    window.__td7ReplayAllHistory=all;
+    applyReplayDateSelection();
+  }
+
+  function applyReplayAt(clockMs, resetTrail=false){
+    const choice=document.getElementById('replayEntrantSelect').value;
+    selectedEntrantId=choice==='all'?null:choice;
+    viewMode=choice==='all'?'all':'entrant';
+    let changed=resetTrail;
+    ENTRANTS.forEach(e=>{
+      const list=replayByEntrant.get(String(e.id))||[];
+      let lo=0,hi=list.length-1,idx=-1;
+      while(lo<=hi){const mid=(lo+hi)>>1; if(list[mid].gpsMs<=clockMs){idx=mid;lo=mid+1}else hi=mid-1;}
+      const finished=idx>=0 && idx===list.length-1 && clockMs>=list[list.length-1].gpsMs;
+      if(e.__replayIndex!==idx || e.finished!==finished || resetTrail){
+        changed=true;
+        e.__replayIndex=idx;
+        if(idx>=0){
+          const p=list[idx]; e.latest=p; e.progress=p.routeProgress ?? 0; e.started=true; e.finished=finished;
+          const from=Math.max(0,idx-700); e.historyPoints=list.slice(from,idx+1); e.history=e.historyPoints.map(x=>x.latLng);
+          e.status=e.finished?'finished':'active';
+        }else{
+          e.latest=null;e.progress=0;e.started=false;e.finished=false;e.history=[];e.historyPoints=[];e.status='waiting';
+        }
+      }
+    });
+    if(changed) drawEntrants();
+    return changed;
+  }
+
+  function replayStatus(prefix='EVENT REPLAY'){
+    const choice=document.getElementById('replayEntrantSelect').value;
+    const shown=choice==='all'?ENTRANTS:ENTRANTS.filter(e=>String(e.id)===choice);
+    const active=shown.filter(e=>e.started&&!e.finished).length;
+    const waiting=shown.filter(e=>!e.started).length;
+    const finished=shown.filter(e=>e.finished).length;
+    const speed=Number(document.getElementById('replaySpeedSelect').value)||1;
+    mapStatus.innerHTML=`<strong>${prefix}:</strong> ${replayFormatClock(replayClockMs)} · ${speed}× · ${active} active · ${waiting} waiting · ${finished} finished`;
+  }
+
+  function replayTick(now){
+    if(!replayRunning) return;
+    const speed=Number(document.getElementById('replaySpeedSelect').value)||1;
+    replayClockMs=Math.min(replayLoadedRange.maxMs,replayAnchorClockMs+(now-replayAnchorRealMs)*speed);
+    replayLastFrameMs=now;
+    applyReplayAt(replayClockMs);
+    const statusSecond=Math.floor(replayClockMs/1000);
+    if(statusSecond!==replayLastStatusSecond){replayLastStatusSecond=statusSecond;replayStatus();}
+    if(replayClockMs>=replayLoadedRange.maxMs){replayRunning=false;setReplayIndicator('paused');replayStatus('REPLAY COMPLETE');return;}
+    replayFrameId=requestAnimationFrame(replayTick);
+  }
+
+  function resetCurrentReplay(){
+    replayRunning=false; if(replayFrameId) cancelAnimationFrame(replayFrameId);
+    replayFrameId=null; replayLastStatusSecond=-1;
+    ENTRANTS.forEach(e=>{e.__replayIndex=undefined;});
+    replayStartMs=replayMsFromTime(document.getElementById('replayStartTime').value);
+    replayClockMs=replayStartMs; applyReplayAt(replayClockMs,true); setReplayIndicator('paused'); replayStatus('REPLAY RESTARTED');
+  }
+
+  async function openEventReplay(){
+    clearInterval(liveTrackingTimer); liveTrackingTimer=null; operatingMode='replay'; replayRunning=false;
+    openCardEntrantId=null; fixedEntrantCard.classList.remove('open');
+    openCard('replayBackdrop'); mapStatus.innerHTML='<strong>EVENT REPLAY:</strong> Reading recorded history…';
+    refreshTrackingStatus();
+    try{await loadReplayHistory(); resetCurrentReplay();}
+    catch(err){operatingMode='live'; hideReplayIndicator(); mapStatus.innerHTML=`<strong>REPLAY ERROR:</strong> ${escapeHtml(err.message)}`;}
+  }
+
+  function startReplay(){
+    if(!replayLoadedRange) return;
+    if(replayClockMs===null || replayClockMs>=replayLoadedRange.maxMs) resetCurrentReplay();
+    replayRunning=true; operatingMode='replay';
+    replayAnchorClockMs=replayClockMs;
+    replayAnchorRealMs=performance.now();
+    replayLastFrameMs=replayAnchorRealMs;
+    replayLastStatusSecond=-1;
+    setReplayIndicator('running');
+    if(replayFrameId) cancelAnimationFrame(replayFrameId); replayFrameId=requestAnimationFrame(replayTick);
+  }
+
+  function pauseReplay(){replayRunning=false;if(replayFrameId)cancelAnimationFrame(replayFrameId);replayFrameId=null;setReplayIndicator('paused');replayStatus('REPLAY PAUSED');}
+  function stopReplay(){replayRunning=false;if(replayFrameId)cancelAnimationFrame(replayFrameId);replayFrameId=null;setReplayIndicator('paused');replayStatus('REPLAY STOPPED');}
+
+  function returnToLive(){
+    // Fully abandon Event Replay before resuming live Tracking.
+    replayRunning=false;
+    if(replayFrameId) cancelAnimationFrame(replayFrameId);
+    replayFrameId=null;
+    replayHistory=[];
+    replayByEntrant=new Map();
+    replayStartMs=null;
+    replayClockMs=null;
+    replayLastFrameMs=0;
+    replayLoadedRange=null;
+    replayAnchorRealMs=0;
+    replayAnchorClockMs=0;
+    replayLastStatusSecond=-1;
+    window.__td7ReplayAllHistory=[];
+
+    const replayDateSelect=document.getElementById('replayDateSelect');
+    const replayStartTime=document.getElementById('replayStartTime');
+    const replayEntrantSelect=document.getElementById('replayEntrantSelect');
+    const replaySpeedSelect=document.getElementById('replaySpeedSelect');
+    if(replayDateSelect) replayDateSelect.innerHTML='<option value="">Open Event Replay to read history</option>';
+    if(replayStartTime) replayStartTime.value='';
+    if(replayEntrantSelect){
+      replayEntrantSelect.innerHTML='<option value="all">All entrants</option>';
+      replayEntrantSelect.value='all';
+    }
+    if(replaySpeedSelect) replaySpeedSelect.value='1';
+    syncReplaySpeedControls();
+    const replayRange=document.getElementById('replayRange');
+    if(replayRange) replayRange.textContent='Open Event Replay to read the available recorded history.';
+
+    ENTRANTS.forEach(e=>{
+      e.__replayIndex=undefined;
+      e.latest=null;
+      e.history=[];
+      e.historyPoints=[];
+      e.progress=0;
+      e.started=false;
+      e.finished=false;
+      e.status='waiting';
+    });
+
+    operatingMode='live';
+    hideReplayIndicator();
+    closeCards();
+    selectedEntrantId=null;
+    selectedControlIndex=null;
+    viewMode='all';
+    openCardEntrantId=null;
+    fixedEntrantCard.classList.remove('open');
+
+    entrantLayer.clearLayers();
+    entrantMarkers.clear();
+    historyLayer.clearLayers();
+    mapStatus.innerHTML='<strong>LIVE TRACKING:</strong> Refreshing live positions…';
+    startLiveTracking();
+  }
+
+  const CentreControl=L.Control.extend({
+    options:{position:'topleft'},
+    onAdd(){
+      const div=L.DomUtil.create('div','leaflet-bar centre-control');
+      const a=L.DomUtil.create('a','',div);
+      a.href='#';a.title='Centre view';a.setAttribute('aria-label','Centre view');a.innerHTML='◎';
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.on(a,'click',L.DomEvent.stop).on(a,'click',centreView);
+      return div;
+    }
+  });
+  map.addControl(new CentreControl());
+  L.control.zoom({position:'topleft'}).addTo(map);
+
+  function openCard(id){document.getElementById(id).classList.add('open')}
+  function closeCards(){document.querySelectorAll('.card-backdrop.open').forEach(x=>x.classList.remove('open'))}
+
+  entrantBtn.addEventListener('click',()=>openCard('entrantBackdrop'));
+  document.getElementById('settingsBtn').addEventListener('click',()=>openCard('settingsBackdrop'));
+  function openTrackingHelp(){
+    try{
+      if(window.parent && window.parent !== window){
+        window.parent.postMessage({
+          type:'TD_DOC',
+          key:'trackingHelp',
+          title:'Tracking guide'
+        }, '*');
+        return;
+      }
+    }catch(_e){}
+    alert('Open Tracking from the Rally Dashboard to view Help.');
+  }
+  document.getElementById('helpBtn').addEventListener('click',openTrackingHelp);
+  const viewModeBtn=document.getElementById('viewModeBtn');
+  const TRACKING_VIEW_KEY='RALLY_TRACKING_VIEW_COMPACT';
+  function applyTrackingView(on){
+    document.body.classList.toggle('tracking-compact',!!on);
+    if(viewModeBtn){
+      viewModeBtn.setAttribute('aria-pressed',on?'true':'false');
+      viewModeBtn.textContent=on?'Compact':'Normal';
+    }
+    requestAnimationFrame(()=>{try{map.invalidateSize({pan:false});}catch(_e){}});
+    setTimeout(()=>{try{map.invalidateSize({pan:false});}catch(_e){}},120);
+  }
+  if(viewModeBtn){
+    viewModeBtn.addEventListener('click',()=>{
+      const on=!document.body.classList.contains('tracking-compact');
+      try{localStorage.setItem(TRACKING_VIEW_KEY,on?'1':'0');}catch(_e){}
+      applyTrackingView(on);
+    });
+    let saved=false;
+    try{saved=localStorage.getItem(TRACKING_VIEW_KEY)==='1';}catch(_e){}
+    applyTrackingView(saved);
+  }
+  document.getElementById('trackingBtn').addEventListener('click',async()=>{openCard('trackingBackdrop');refreshTrackingSetup();await refreshTrackingStatus();});
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.close).classList.remove('open')));
+  document.querySelectorAll('.card-backdrop').forEach(bg=>bg.addEventListener('click',e=>{if(e.target===bg)bg.classList.remove('open')}));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeCards()});
+
+  function setEntrantMenuMode(mode){
+    const showControls=mode==='controls';
+    const allBtn=document.querySelector('[data-view="all"]');
+    const controlsBtn=document.getElementById('controlsViewBtn');
+    const entrantWrap=document.getElementById('entrantListWrap');
+    const controlWrap=document.getElementById('controlListWrap');
+    if(allBtn) allBtn.classList.toggle('active',!showControls);
+    if(controlsBtn) controlsBtn.classList.toggle('active',showControls);
+    if(entrantWrap) entrantWrap.hidden=showControls;
+    if(controlWrap) controlWrap.hidden=!showControls;
+    const results=document.getElementById('entrantResults');
+    if(results) results.scrollTop=0;
+  }
+
+  document.querySelector('[data-view="all"]').addEventListener('click',()=>{
+    setEntrantMenuMode('entrants');
+    restoreNormalStatuses();
+    selectAll(true);
+  });
+  document.getElementById('controlsViewBtn').addEventListener('click',()=>{
+    setEntrantMenuMode('controls');
+  });
+  setEntrantMenuMode('entrants');
+
+
+  document.getElementById('dotSizeControls').addEventListener('click',e=>{
+    const b=e.target.closest('[data-size]');if(!b)return;
+    document.querySelectorAll('#dotSizeControls button').forEach(x=>x.classList.toggle('active',x===b));
+    const sizes={S:10,M:14,L:18};
+    document.documentElement.style.setProperty('--dot-size',`${sizes[b.dataset.size]}px`);
+    drawEntrants();
+  });
+  document.getElementById('markerLabelControls').addEventListener('click',e=>{
+    const b=e.target.closest('[data-label-mode]');if(!b)return;
+    document.querySelectorAll('#markerLabelControls button').forEach(x=>x.classList.toggle('active',x===b));
+    markerLabelMode=b.dataset.labelMode || 'number';
+    drawEntrants();
+  });
+
+  document.getElementById('entrantTrailControls').addEventListener('click',e=>{
+    const b=e.target.closest('[data-entrant-trail]');if(!b)return;
+    document.querySelectorAll('#entrantTrailControls button').forEach(x=>x.classList.toggle('active',x===b));
+    const raw=b.dataset.entrantTrail;
+    defaultTrack=raw==='all'?'all':raw==='none'?'none':Number(raw);
+    if(selectedEntrantId){
+      const entrant=ENTRANTS.find(x=>x.id===selectedEntrantId);
+      if(entrant) entrant.popupTrack=defaultTrack;
+    }
+    drawEntrants();
+    centreView();
+  });
+  document.getElementById('zoomDown').addEventListener('click',()=>{controlZoom=Math.max(10,controlZoom-1);document.getElementById('zoomValue').textContent=controlZoom});
+  document.getElementById('zoomUp').addEventListener('click',()=>{controlZoom=Math.min(19,controlZoom+1);document.getElementById('zoomValue').textContent=controlZoom});
+
+
+  const trackingStorageKey = 'rallyTrackingTrackingStateV031';
+  const trackingConnectionStatus = document.getElementById('trackingConnectionStatus');
+  const TRACKING_PROJECT_TITLE = 'Rally App Tracking Event';
+  const trackingUploadStatus = document.getElementById('trackingUploadStatus');
+  const RALLY_COMMON_KEY = 'rally_common_settings_v1';
+
+  function readRallyCommon(){
+    try { return JSON.parse(localStorage.getItem(RALLY_COMMON_KEY) || '{}'); }
+    catch (_) { return {}; }
+  }
+  function rallyWebAppUrl(){
+    return String(readRallyCommon().webAppUrl || '').trim();
+  }
+  function organiserMobile(){
+    return String(readRallyCommon().mobile || '').trim();
+  }
+
+
+  function readTrackingSetup(){
+    try { return JSON.parse(localStorage.getItem(trackingStorageKey) || '{}'); }
+    catch (_) { return {}; }
+  }
+  function writeTrackingSetup(data){ localStorage.setItem(trackingStorageKey, JSON.stringify(data)); }
+  function applyTrackingLogState(url, ready){
+    ['openTrackingLogBtn','replayOpenTrackingLogBtn'].forEach(id=>{
+      const btn=document.getElementById(id);
+      if(!btn)return;
+      btn.disabled=!ready;
+      btn.classList.toggle('blue',ready);
+      btn.dataset.spreadsheetUrl=ready ? url : '';
+    });
+  }
+  function refreshTrackingSetup(){
+    const setup=readTrackingSetup();
+    const connected=Boolean(rallyWebAppUrl());
+    trackingConnectionStatus.textContent=connected ? 'Connected' : 'Not connected';
+    trackingConnectionStatus.classList.toggle('connected',connected);
+
+    const linkReady=Boolean(connected && setup.uploadedEventId && trackingAppBaseUrl_);
+    ['copyTrackingLinkBtn','emailTrackingLinkBtn'].forEach(id=>{
+      const btn=document.getElementById(id);
+      if(!btn)return;
+      btn.disabled=!linkReady;
+      btn.classList.toggle('blue',linkReady);
+    });
+    const whatsBtn=document.getElementById('whatsAppTrackingLinkBtn');
+    if(whatsBtn){
+      whatsBtn.disabled=!linkReady;
+      whatsBtn.classList.toggle('whatsapp',linkReady);
+    }
+
+    if(setup.uploadedEventId){
+      trackingUploadStatus.hidden=false;
+      trackingUploadStatus.textContent=`Uploaded event: ${setup.uploadedEventId}`;
+      trackingUploadStatus.className='upload-status ok';
+    }
+
+    const cachedLogUrl=(setup.trackingSheetEventId===setup.uploadedEventId) ? (setup.trackingSheetUrl || '') : '';
+    applyTrackingLogState(cachedLogUrl,Boolean(linkReady && cachedLogUrl));
+  }
+
+  let trackingStatusPromise=null;
+  async function refreshTrackingStatus(){
+    if(trackingStatusPromise) return trackingStatusPromise;
+    const setup=readTrackingSetup();
+    const endpoint=rallyWebAppUrl();
+    const cachedLogUrl=(setup.trackingSheetEventId===setup.uploadedEventId) ? (setup.trackingSheetUrl || '') : '';
+    if(!endpoint || !setup.uploadedEventId){
+      applyTrackingLogState('',false);
+      return;
+    }
+    if(cachedLogUrl) applyTrackingLogState(cachedLogUrl,true);
+    trackingStatusPromise=(async()=>{
+      try{
+        const data=await trackingRequest({mode:'trackingStatus',key:TRACKING_KEY,eventId:setup.uploadedEventId});
+        const logUrl=data.trackingSheetUrl || data.spreadsheetUrl || '';
+        const ready=Boolean(data.hasTrackingData && logUrl);
+        const current=readTrackingSetup();
+        if(current.uploadedEventId!==setup.uploadedEventId) return;
+        if(ready){
+          writeTrackingSetup({...current,trackingSheetUrl:logUrl,trackingSheetEventId:setup.uploadedEventId});
+          applyTrackingLogState(logUrl,true);
+        }else{
+          writeTrackingSetup({...current,trackingSheetUrl:'',trackingSheetEventId:setup.uploadedEventId});
+          applyTrackingLogState('',false);
+        }
+      }catch(err){
+        console.warn('Tracking status check failed:',err);
+        if(cachedLogUrl) applyTrackingLogState(cachedLogUrl,true);
+      }finally{
+        trackingStatusPromise=null;
+      }
+    })();
+    return trackingStatusPromise;
+  }
+  async function trackingRequest(params, payload){
+    const endpoint=rallyWebAppUrl();
+    if(!endpoint) throw new Error('Connect the Rally App to Google from Admin first.');
+    const url=new URL(endpoint);
+    Object.entries(params||{}).forEach(([k,v])=>url.searchParams.set(k,v));
+    const options=payload ? {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)} : {method:'GET'};
+    const response=await fetch(url.toString(),options);
+    const data=await response.json();
+    if(!data.ok) throw new Error(data.error || 'Tracking request failed.');
+    return data;
+  }
+  function rallyTrackingPayload(){
+    const ctx=readRallyAppContext();
+    activeRallyContext=ctx;
+    if(!ctx) throw new Error('No active Rally App project was found.');
+    if(!Array.isArray(ctx.entries) || !ctx.entries.length) throw new Error('The active Rally App project has no entrants.');
+    if(!ctx.mapPackage || !Array.isArray(ctx.mapPackage.waypoints) || !ctx.mapPackage.waypoints.length){
+      throw new Error(`No Mapping route found for Day ${ctx.day}, Route ${ctx.route}.`);
+    }
+
+    const entrants=normaliseRallyEntrants(ctx.entries).map(e=>({
+      rallyNo:e.id,
+      name:e.name,
+      driverName:e.name,
+      startOffset:e.startOffset
+    }));
+
+    return {
+      key:TRACKING_KEY,
+      eventId:String(ctx.rid),
+      pageHeader:`${ctx.title} — Day ${ctx.day} — Route ${ctx.route}`,
+      rallyTitle:ctx.title,
+      day:`Day ${ctx.day}`,
+      route:`Route ${ctx.route}`,
+      entrants,
+      routeData:ctx.mapPackage
+    };
+  }
+  let trackingAppBaseUrl_='';
+
+  function requestShellAppLink_(key, timeoutMs=700){
+    return new Promise(resolve=>{
+      const requestId='tracking-app-link-'+String(key||'')+'-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+      let finished=false;
+      let timer=null;
+      const finish=value=>{
+        if(finished)return;
+        finished=true;
+        try{window.removeEventListener('message',onMessage);}catch(_){}
+        if(timer)clearTimeout(timer);
+        resolve(String(value||''));
+      };
+      const onMessage=ev=>{
+        try{
+          const d=ev && ev.data ? ev.data : null;
+          if(!d || d.type!=='TD_APP_LINK_RESPONSE' || String(d.requestId||'')!==requestId)return;
+          const link=d.link && typeof d.link==='object' ? d.link : null;
+          finish(link ? link.url : '');
+        }catch(_){finish('');}
+      };
+      window.addEventListener('message',onMessage);
+      timer=setTimeout(()=>finish(''),Number(timeoutMs||700));
+      try{
+        if(window.parent && window.parent!==window){
+          window.parent.postMessage({type:'TD_REQUEST_APP_LINK',key:String(key||''),requestId},'*');
+        }else{
+          finish('');
+        }
+      }catch(_){finish('');}
+    });
+  }
+
+  async function refreshTrackingAppBaseUrl_(){
+    trackingAppBaseUrl_=await requestShellAppLink_('trackingApp',700);
+    refreshTrackingSetup();
+    return trackingAppBaseUrl_;
+  }
+
+  function trackingShareLink(){
+    const setup=readTrackingSetup();
+    if(!setup.uploadedEventId || !trackingAppBaseUrl_) return '';
+    const url=new URL(trackingAppBaseUrl_,location.href);
+    const config={configVersion:1,eventId:setup.uploadedEventId,webAppUrl:rallyWebAppUrl(),key:TRACKING_KEY};
+    url.searchParams.set('config',JSON.stringify(config));
+    return url.toString();
+  }
+  function shareText(){
+    const ctx=activeRallyContext || readRallyAppContext();
+    const title=ctx ? `${ctx.title} — Day ${ctx.day} — Route ${ctx.route}` : TRACKING_PROJECT_TITLE;
+    return `${title}
+${trackingShareLink()}`;
+  }
+  function setTrackingButtonBusy(btn,busy,label='Uploading'){
+    if(!btn)return;
+    if(busy){
+      if(!btn.dataset.origHtml)btn.dataset.origHtml=btn.innerHTML;
+      btn.disabled=true;
+      btn.classList.add('busy');
+      btn.innerHTML=`${label} <span class="dots5" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>`;
+    }else{
+      btn.classList.remove('busy');
+      if(btn.dataset.origHtml)btn.innerHTML=btn.dataset.origHtml;
+      btn.disabled=false;
+    }
+  }
+
+  let trackingToastTimer=null;
+  function showTrackingToast(message,kind=''){
+    const toast=document.getElementById('trackingToast');
+    if(!toast)return;
+    clearTimeout(trackingToastTimer);
+    toast.textContent=message;
+    toast.className='tracking-toast show'+(kind ? ' '+kind : '');
+    trackingToastTimer=setTimeout(()=>{toast.className='tracking-toast';},2400);
+  }
+
+  function saveBlob(text,name,type='text/plain'){
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+
+  document.getElementById('uploadTrackingDataBtn').addEventListener('click',async()=>{
+    const btn=document.getElementById('uploadTrackingDataBtn');
+    setTrackingButtonBusy(btn,true,'Uploading');
+    trackingUploadStatus.hidden=false;
+    trackingUploadStatus.textContent='Creating rally tracking data in Google…';
+    trackingUploadStatus.className='upload-status';
+    try{
+      const payload=rallyTrackingPayload();
+      const data=await trackingRequest({mode:'trackingEventUpload'},payload);
+      const old=readTrackingSetup();
+      writeTrackingSetup({...old,pageHeader:payload.pageHeader,uploadedEventId:data.eventId,uploadedAt:data.uploadedAt,
+        trackingSheetUrl:old.uploadedEventId===data.eventId?(old.trackingSheetUrl||''):'',
+        trackingSheetEventId:old.uploadedEventId===data.eventId?(old.trackingSheetEventId||''):''});
+      trackingUploadStatus.textContent=`Uploaded ${data.entrantCount} entrants and route data — event ${data.eventId}.`;
+      trackingUploadStatus.className='upload-status ok';
+      refreshTrackingSetup();
+      // v0.30: the event upload is complete at this point. Do not keep the Upload
+      // button busy while the separate read-only Google status check runs.
+      Promise.resolve(refreshTrackingStatus()).catch(err => {
+        console.warn('Tracking status refresh after upload failed:', err);
+      });
+      refreshLiveTracking();
+      showTrackingToast('Google request sent.','ok');
+    }catch(err){
+      trackingUploadStatus.textContent=`Upload failed: ${err.message}`;
+      trackingUploadStatus.className='upload-status bad';
+      showTrackingToast(`Upload failed: ${err.message}`, 'bad');
+    }finally{
+      setTrackingButtonBusy(btn,false);
+    }
+  });
+  async function openTrackingLogFromButton(btn){
+    let url=btn.dataset.spreadsheetUrl || '';
+    if(!url){
+      await refreshTrackingStatus();
+      url=btn.dataset.spreadsheetUrl || '';
+    }
+    if(url) window.open(url,'_blank','noopener');
+  }
+  document.getElementById('openTrackingLogBtn').addEventListener('click',event=>openTrackingLogFromButton(event.currentTarget));
+  document.getElementById('replayOpenTrackingLogBtn').addEventListener('click',event=>openTrackingLogFromButton(event.currentTarget));
+  document.getElementById('copyTrackingLinkBtn').addEventListener('click',async()=>{
+    const link=trackingShareLink();if(!link){alert('Upload tracking data first.');return;}
+    try{await navigator.clipboard.writeText(link);alert('Tracking link copied.');}catch(_){prompt('Copy the tracking link:',link);}
+  });
+  document.getElementById('emailTrackingLinkBtn').addEventListener('click',()=>{const link=trackingShareLink();if(!link){alert('Upload tracking data first.');return;}location.href=`mailto:?subject=${encodeURIComponent(TRACKING_PROJECT_TITLE+' Tracking')}&body=${encodeURIComponent(shareText())}`;});
+  document.getElementById('whatsAppTrackingLinkBtn').addEventListener('click',()=>{
+    const link=trackingShareLink();if(!link){alert('Upload tracking data first.');return;}
+    const digits=organiserMobile().replace(/[^0-9]/g,'');
+    const target=digits ? `https://wa.me/${digits}?text=${encodeURIComponent(shareText())}` : `https://wa.me/?text=${encodeURIComponent(shareText())}`;window.open(target,'_blank','noopener');
+  });
+  refreshTrackingSetup();
+  setTimeout(()=>{ refreshTrackingAppBaseUrl_().catch(()=>{}); },0);
+
+
+
+  document.getElementById('replayBtn').addEventListener('click',openEventReplay);
+  document.getElementById('replayStartBtn').addEventListener('click',startReplay);
+  document.getElementById('replayPauseBtn').addEventListener('click',pauseReplay);
+  document.getElementById('replayStopBtn').addEventListener('click',stopReplay);
+  document.getElementById('replayResetBtn').addEventListener('click',resetCurrentReplay);
+  document.getElementById('replayReturnLiveBtn').addEventListener('click',returnToLive);
+  document.getElementById('replaySpeedSelect').addEventListener('change',e=>setReplaySpeed(e.target.value));
+  document.getElementById('replayQuickSpeed').addEventListener('click',e=>{const btn=e.target.closest('[data-replay-speed]');if(btn)setReplaySpeed(btn.dataset.replaySpeed);});
+  document.getElementById('replayDateSelect').addEventListener('change',e=>{
+    if(operatingMode!=='replay') return;
+    document.getElementById('replayStartTime').value='';
+    applyReplayDateSelection(e.target.value);
+    resetCurrentReplay();
+  });
+  document.getElementById('replayEntrantSelect').addEventListener('change',()=>{if(operatingMode==='replay')resetCurrentReplay();});
+  document.getElementById('replayStartTime').addEventListener('change',()=>{if(operatingMode==='replay')resetCurrentReplay();});
+
+  document.getElementById('fixedCardClose').addEventListener('click', closeFixedCard);
+  buildRoute()
+    .then(startLiveTracking)
+    .catch(err=>{mapStatus.innerHTML=`<strong>TRACKING ERROR:</strong> ${escapeHtml(err.message)}`;});
+})();
+</script>
+</body>
+</html>

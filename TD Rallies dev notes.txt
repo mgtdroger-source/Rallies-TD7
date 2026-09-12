@@ -1,0 +1,197 @@
+TD Rallies 2 – Dev Notes
+7 May 2026
+
+v0.4.12
+- Added Route 2 support.
+- Added Schedule page route selector, Timeline 2 and route-based print options.
+- Added combined Timeline view for Route 2.
+- Added Route diagram to Schedule guide.
+- Reviewed and updated all guide documents.
+- Controls route handling is fully automatic.
+- Added PWA STC Recorder App to the system, Code.gs, Google World and Controls page buttons.
+- Resolved Schedule page control numbering issue.
+- Remapped local storage for day routes.
+- Updated Dashboard to read the new store structure and show day route indication.
+- Added Route assignment column in Admin.
+- Updated saved files to include RID index and improved save and load protocal
+- Added file Save as Template,clears Abimin and controls ATA data while retaining Schedule data
+
+TD Rallies 2 – System Notes
+
+CORE APP
+- Single source: TD_RALLIES store.
+- No fallback logic; strict reads only.
+- Pages read/write via controlled flow.
+
+ROUTES
+- Routes are defined in Admin: 1 or 2.
+- Entrants are assigned per route.
+- Both routes must have the same number of controls.
+- Controls page reads route per entrant; no guessing.
+
+TIMELINE
+- Route 1 view: single route.
+- Route 2 view: combined routes.
+- Segment carry-forward logic.
+- Start delays are defined in Route 1.
+
+CONTROLS
+- ETA is calculated from Schedule + SG.
+- Start STC resets timing base.
+- Missing route data shows “No Rt. 2”.
+
+PWA STC RECORDER
+- Uses shared config from Controls.
+- Latest submission overwrites previous.
+- Date guard prevents wrong-day use.
+- Raw and merged sheets maintained.
+
+GOOGLE INTEGRATION
+- Apps Script Web App endpoint.
+- Unified STC Day sheet for Forms + PWA.
+- Error tab for mismatches.
+
+Creating a new release pack example-TD Rallies 2 to TD Rallies 3 - Change Steps
+
+Purpose
+-------
+Create a separate TD Rallies 3 folder/package so the Chrome launcher issue can be tested and fixed without disturbing the working TD Rallies 2 package.
+
+1. Copy the working folder
+--------------------------
+Copy the full working TD Rallies 2 folder and rename the copy to:
+
+TD Rallies 3
+
+This creates a safe trial branch.
+
+2. Update the shortcut creator file
+-----------------------------------
+Use/update the PowerShell shortcut creator:
+
+Create_TD_Rallies_3_Desktop_Shortcut.ps1
+
+Inside the file, change the user-facing shortcut name from:
+
+TD Rallies 2
+
+to:
+
+TD Rallies 3
+
+The important shortcut path should create:
+
+TD Rallies 3.lnk
+
+3. Update the setup wrapper
+---------------------------
+Update Setup_TD_Rallies.cmd so it calls:
+
+Create_TD_Rallies_3_Desktop_Shortcut.ps1
+
+instead of:
+
+Create_TD_Rallies_2_Desktop_Shortcut.ps1
+
+This makes the setup chain consistent with TD Rallies 3.
+
+4. Create the Chrome launcher
+-----------------------------
+Create a new launcher in the system folder.
+
+Trial name used first:
+
+Launch_TD_Rallies_3_Chrome_Test.cmd
+
+After testing, rename it to:
+
+Launch_TD_Rallies_3.cmd
+
+The key launcher change is from Edge:
+
+start "" msedge ...
+
+to Chrome:
+
+start "" "%CHROME%" --app="%URL%" --user-data-dir="%PROFILE%" --allow-file-access-from-files --window-size=1600,980 --window-position=40,40
+
+Also change the dedicated browser profile from:
+
+.profile-edge-2
+
+to:
+
+.profile-chrome-3
+
+5. Point the shortcut creator to the new launcher
+-------------------------------------------------
+In Create_TD_Rallies_3_Desktop_Shortcut.ps1, change the launcher target from:
+
+System\Launch_TD_Rallies_2.cmd
+
+to:
+
+System\Launch_TD_Rallies_3.cmd
+
+Then delete the old desktop shortcut if needed and run:
+
+Setup_TD_Rallies.cmd
+
+This recreates the desktop shortcut so it opens the Chrome launcher.
+
+6. Clean up the Landing page fallback
+-------------------------------------
+In TD_Landing_v0.2.0.html, update the stale shell target from:
+
+const TARGET = "Rally_Shell_v0.4.10.html";
+
+to:
+
+const TARGET = "Rally_Shell_v0.4.12.html";
+
+This matters if the Landing page is opened directly.
+
+7. Current opening chain
+------------------------
+The final TD Rallies 3 opening chain is:
+
+TD Rallies 3 desktop icon
+  -> Setup-created shortcut
+  -> system\Launch_TD_Rallies_3.cmd
+  -> Chrome
+  -> system\index.html
+  -> Rally_Shell_v0.4.12.html
+  -> Home / Admin / Schedule / Controls
+
+8. Test checklist
+-----------------
+After changes, test:
+
+- Double-click TD Rallies 3 desktop icon.
+- Confirm app opens in Chrome.
+- Confirm Landing opens.
+- Confirm Home opens.
+- Confirm Admin opens.
+- Confirm Schedule opens.
+- Confirm Controls opens.
+- Set workspace folder.
+- Close and reopen app.
+- Confirm workspace is remembered.
+- Test Google Drive links.
+
+Notes
+-----
+No Home/Admin/Schedule/Controls page changes were needed for this stage.
+
+The main issue was the launcher/shortcut chain still pointing to the old Edge launcher.
+
+TD Rallies 2 should remain untouched as the stable backup.
+
+TD Rallies 3 – Dev Notes
+2 July 2026
+App open in Chrome first - Edge if no Chrome on PC
+Intergration of mapping facility and GPS Field tool
+
+Adding mapping update to Rally home Dashboard, Rally shell, index and add tsd mapping, mapping intergated without GPS line data.
+
+The code.gs is called by Admin
